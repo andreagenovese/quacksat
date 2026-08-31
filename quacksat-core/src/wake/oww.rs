@@ -158,6 +158,14 @@ impl OpenWakeWord {
 }
 
 impl WakeDetector for OpenWakeWord {
+    fn reset(&mut self) {
+        self.pending.clear();
+        self.lookback = [0.0; LOOKBACK];
+        self.mels.clear();
+        self.feats.clear();
+        self.refractory = 0;
+    }
+
     fn feed(&mut self, frame: &[i16]) -> bool {
         self.pending.extend_from_slice(frame);
         let mut woke = false;

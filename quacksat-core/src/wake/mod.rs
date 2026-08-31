@@ -10,6 +10,11 @@ use crate::vad::{Vad, VadEvent};
 pub trait WakeDetector: Send {
     /// Feed one 16 kHz mono frame; `true` means the wake word fired.
     fn feed(&mut self, frame: &[i16]) -> bool;
+
+    /// Forget all buffered audio. Called when the pipeline resumes
+    /// listening after a conversation turn, so the detector cannot
+    /// re-trigger on its own stale wake phrase.
+    fn reset(&mut self) {}
 }
 
 pub fn from_config(config: &WakeConfig) -> anyhow::Result<Box<dyn WakeDetector>> {

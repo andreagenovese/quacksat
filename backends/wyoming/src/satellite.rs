@@ -169,6 +169,9 @@ fn handle_event(
         "transcript" => {
             if *mode == Mode::Streaming {
                 *mode = Mode::Waiting;
+                // Forget the wake phrase still sitting in the detector's
+                // buffers, or it re-triggers on itself when listening resumes.
+                deps.detector.reset();
             }
             let text = event.data.get("text").and_then(Value::as_str).unwrap_or("");
             tracing::info!(text, "transcript");
@@ -195,6 +198,7 @@ fn handle_event(
             // mic frames that arrived while the duck was talking.
             deps.player.end_stream();
             while deps.frames.try_recv().is_ok() {}
+            deps.detector.reset();
             write_event(writer, &Event::new("played", Value::Null))?;
             tracing::info!("tts played");
         }
@@ -203,6 +207,7 @@ fn handle_event(
             tracing::warn!(text, "pipeline error");
             if *mode == Mode::Streaming {
                 *mode = Mode::Waiting;
+                deps.detector.reset();
             }
         }
         other => tracing::debug!(event = other, "ignored wyoming event"),
