@@ -170,7 +170,7 @@ fn require_str<'a>(args: &'a Value, key: &str) -> Result<&'a str, String> {
         .ok_or_else(|| format!("{key} is required"))
 }
 
-fn with_robot<'a>(control: &'a mut Option<Control>) -> Result<&'a mut Control, String> {
+fn with_robot(control: &mut Option<Control>) -> Result<&mut Control, String> {
     control
         .as_mut()
         .ok_or_else(|| "robot unreachable".to_string())

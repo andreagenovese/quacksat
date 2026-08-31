@@ -67,7 +67,7 @@ fn full_conversation_flow() {
         // The scripted bridge.
         let (stream, _) = listener.accept().unwrap();
         let mut bridge = tungstenite::accept(stream).unwrap();
-        let mut next_json = |bridge: &mut tungstenite::WebSocket<std::net::TcpStream>| -> Value {
+        let next_json = |bridge: &mut tungstenite::WebSocket<std::net::TcpStream>| -> Value {
             loop {
                 match bridge.read().unwrap() {
                     Message::Text(text) => return serde_json::from_str(&text).unwrap(),
