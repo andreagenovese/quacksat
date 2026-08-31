@@ -139,12 +139,17 @@ impl OpenWakeWord {
         let wake_out = self.wake_model.run(tvec!(input.into()))?;
         let score = wake_out[0].as_slice::<f32>()?[0];
 
+        // Tuning aid: anything the model found even vaguely interesting is
+        // visible at debug, so a threshold can be picked from real voices.
+        if score >= 0.1 {
+            tracing::debug!(score = format!("{score:.2}").as_str(), model = %self.name, "wake score");
+        }
+
         if self.refractory > 0 {
             self.refractory -= 1;
             return Ok(false);
         }
         if score >= self.threshold {
-            tracing::debug!(score, model = %self.name, "wake word scored");
             self.refractory = REFRACTORY_CHUNKS;
             return Ok(true);
         }
