@@ -24,7 +24,10 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             None
         }
     };
-    let mut player = Player::new(&config.audio.playback_device);
+    let mut player = match &config.audio.playback_program {
+        Some(program) => Player::with_program(&config.audio.playback_device, program),
+        None => Player::new(&config.audio.playback_device),
+    };
     let mut detector = wake::from_config(config.wake.mode);
 
     satellite::serve(

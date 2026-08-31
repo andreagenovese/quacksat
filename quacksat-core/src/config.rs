@@ -62,6 +62,10 @@ pub struct AudioConfig {
     /// S16_LE 2ch 48kHz audio to stdout (e.g. sox on macOS, a file feeder in
     /// CI). Unset on the robot, where arecord + capture_device is the path.
     pub capture_command: Option<Vec<String>>,
+    /// Development hook: the program spawned for playback instead of
+    /// `aplay`, invoked with aplay-style arguments (see
+    /// scripts/aplay-shim-macos.sh for a sox-based shim).
+    pub playback_program: Option<String>,
 }
 
 impl Default for AudioConfig {
@@ -70,6 +74,7 @@ impl Default for AudioConfig {
             playback_device: "plughw:aic3104".to_string(),
             capture_device: "plughw:aic3104,0".to_string(),
             capture_command: None,
+            playback_program: None,
         }
     }
 }

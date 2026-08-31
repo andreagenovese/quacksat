@@ -18,6 +18,8 @@ capture_device = "plughw:aic3104,0"
 # Development hook: replace arecord with any command writing raw S16_LE
 # 2ch 48kHz to stdout. macOS with the real mic (brew install sox):
 # capture_command = ["sox", "-q", "-d", "-t", "raw", "-r", "48000", "-c", "2", "-e", "signed-integer", "-b", "16", "-"]
+# Development hook: playback program spawned with aplay-style arguments.
+# macOS speakers via sox: playback_program = "scripts/aplay-shim-macos.sh"
 
 [wake]
 # "energy" (bring-up: every utterance wakes) or "disabled".
