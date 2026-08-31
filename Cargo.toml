@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = [
+    "quacksat-core",
+    "backends/wyoming",
+    "backends/agent",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/andreagenovese/quacksat"
+authors = ["Andrea Genovese <info@rstonline.it>"]
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
+
+quacksat-core = { path = "quacksat-core" }
+
+# Profile tuned for the board (RK3566, 1 GB RAM): small binary.
+[profile.release]
+lto = "thin"
+strip = true

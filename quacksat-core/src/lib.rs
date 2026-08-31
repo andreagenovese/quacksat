@@ -1,0 +1,4 @@
+//! quacksat core: audio capture, wake word, VAD, speaker output, and the
+//! robotd client. Backends (wyoming, agent) build on top of this crate.
+
+pub mod config;

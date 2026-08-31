@@ -1,0 +1,14 @@
+[package]
+name = "quacksat-backend-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "AI agent backend: WebSocket to an STT → LLM (tool calling) → TTS bridge"
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+quacksat-core.workspace = true

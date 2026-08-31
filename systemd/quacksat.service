@@ -1,0 +1,26 @@
+[Unit]
+Description=quacksat voice satellite
+After=robotd.service network-online.target
+Wants=network-online.target
+# quacksat is an unprivileged robotd client; it works only if robotd is up.
+BindsTo=robotd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/quacksat /etc/robot/quacksat.toml
+Restart=on-failure
+RestartSec=2
+
+# Unprivileged: talk to robotd over its socket, nothing else.
+User=quacksat
+Group=quacksat
+# Audio group membership is TBD pending ADR 0003 (mic/speaker access).
+SupplementaryGroups=audio
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/etc/robot
+
+[Install]
+WantedBy=multi-user.target

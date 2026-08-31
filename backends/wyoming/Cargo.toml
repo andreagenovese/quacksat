@@ -1,0 +1,14 @@
+[package]
+name = "quacksat-backend-wyoming"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Home Assistant Assist satellite backend (Wyoming protocol)"
+
+[dependencies]
+anyhow.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+quacksat-core.workspace = true

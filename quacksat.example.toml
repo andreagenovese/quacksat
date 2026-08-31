@@ -1,0 +1,9 @@
+# quacksat configuration — install as /etc/robot/quacksat.toml
+
+# Voice backend: "wyoming" (Home Assistant Assist satellite)
+# or "agent" (WebSocket bridge to an STT → LLM → TTS agent).
+backend = "wyoming"
+
+# Path to the robotd JSON-RPC unix socket.
+# For remote development against a forwarded socket, use /tmp/robotd.sock.
+robotd_socket = "/run/robotd.sock"
