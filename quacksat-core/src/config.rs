@@ -83,12 +83,23 @@ impl Default for AudioConfig {
 #[serde(default, deny_unknown_fields)]
 pub struct WakeConfig {
     pub mode: WakeMode,
+    /// Directory holding the openWakeWord feature models
+    /// (melspectrogram.onnx, embedding_model.onnx) and wake models.
+    /// Populate with scripts/fetch-wake-models.sh.
+    pub models_dir: String,
+    /// Wake model file name inside `models_dir`.
+    pub model: String,
+    /// Detection threshold on the model's 0..1 score.
+    pub threshold: f32,
 }
 
 impl Default for WakeConfig {
     fn default() -> Self {
         Self {
             mode: WakeMode::Energy,
+            models_dir: "/var/lib/quacksat/models".to_string(),
+            model: "hey_jarvis_v0.1.onnx".to_string(),
+            threshold: 0.5,
         }
     }
 }
@@ -96,6 +107,8 @@ impl Default for WakeConfig {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WakeMode {
+    /// openWakeWord models via the tract ONNX runtime (pure Rust).
+    Openwakeword,
     /// Bring-up detector: any speech onset after a stretch of silence
     /// counts as a wake. Fires on every utterance — not for production.
     Energy,

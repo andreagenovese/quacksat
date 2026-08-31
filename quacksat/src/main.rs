@@ -75,7 +75,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
     };
 
     let mut vad = Vad::new();
-    let mut detector = wake::from_config(config.wake.mode);
+    let mut detector = wake::from_config(&config.wake)?;
 
     for frame in frames {
         match vad.feed(&frame) {

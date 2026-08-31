@@ -22,8 +22,18 @@ capture_device = "plughw:aic3104,0"
 # macOS speakers via sox: playback_program = "scripts/aplay-shim-macos.sh"
 
 [wake]
-# "energy" (bring-up: every utterance wakes) or "disabled".
-mode = "energy"
+# "openwakeword" (real wake word), "energy" (bring-up: every utterance
+# wakes), or "disabled".
+mode = "openwakeword"
+# openWakeWord models — populate with scripts/fetch-wake-models.sh <dir>.
+# On the robot: /var/lib/quacksat/models. For dev: "models".
+models_dir = "/var/lib/quacksat/models"
+# Wake model file inside models_dir ("hey Jarvis"). A custom phrase (e.g.
+# "hey Daffy") is trained with openWakeWord's synthetic pipeline and
+# dropped in here.
+model = "hey_jarvis_v0.1.onnx"
+# Detection threshold on the 0..1 score.
+threshold = 0.5
 
 [wyoming]
 # Where the satellite listens; point Home Assistant's Wyoming integration

@@ -16,6 +16,8 @@ serde_json.workspace = true
 toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+tract-onnx.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
+hound = "3"

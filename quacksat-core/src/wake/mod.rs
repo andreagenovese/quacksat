@@ -1,9 +1,10 @@
-//! Wake-word detection behind a trait, so the bring-up detector and the
-//! real model-based ones (microWakeWord / openWakeWord — a follow-up task:
-//! openWakeWord's ONNX chain via a pure-Rust runtime is the C-dep-free
-//! candidate) are interchangeable to the pipeline.
+//! Wake-word detection behind a trait: the openWakeWord detector for
+//! production, the energy detector for bring-up, all interchangeable to
+//! the pipeline.
 
-use crate::config::WakeMode;
+pub mod oww;
+
+use crate::config::{WakeConfig, WakeMode};
 use crate::vad::{Vad, VadEvent};
 
 pub trait WakeDetector: Send {
@@ -11,11 +12,12 @@ pub trait WakeDetector: Send {
     fn feed(&mut self, frame: &[i16]) -> bool;
 }
 
-pub fn from_config(mode: WakeMode) -> Box<dyn WakeDetector> {
-    match mode {
+pub fn from_config(config: &WakeConfig) -> anyhow::Result<Box<dyn WakeDetector>> {
+    Ok(match config.mode {
+        WakeMode::Openwakeword => Box::new(oww::OpenWakeWord::load(config)?),
         WakeMode::Energy => Box::new(EnergyWake::new()),
         WakeMode::Disabled => Box::new(NeverWake),
-    }
+    })
 }
 
 /// Bring-up detector: wakes on a speech onset preceded by at least a second

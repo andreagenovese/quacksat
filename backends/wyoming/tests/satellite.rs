@@ -42,7 +42,7 @@ fn full_conversation_flow() {
     std::thread::scope(|scope| {
         let config_ref = &config;
         let handle = scope.spawn(move || {
-            let mut detector = wake::from_config(config_ref.wake.mode);
+            let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program(&config_ref.audio.playback_device, &aplay);
             let mut control = None;
             run_connection(
@@ -174,7 +174,7 @@ fn frames_before_run_satellite_are_ignored() {
     std::thread::scope(|scope| {
         let config_ref = &config;
         let handle = scope.spawn(move || {
-            let mut detector = wake::from_config(config_ref.wake.mode);
+            let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program(&config_ref.audio.playback_device, &aplay);
             let mut control = None;
             run_connection(

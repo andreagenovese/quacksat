@@ -26,6 +26,8 @@ serde_json = "1"
 toml = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# Pure-Rust ONNX runtime for the wake-word models (no C deps, ADR 0003 spirit).
+tract-onnx = "0.21"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
 
 quacksat-core = { path = "quacksat-core" }
@@ -36,3 +38,8 @@ quacksat-backend-agent = { path = "backends/agent" }
 [profile.release]
 lto = "thin"
 strip = true
+
+# Dev builds must run wake-word inference faster than real time: optimize
+# dependencies (tract above all), keep our own code on fast debug builds.
+[profile.dev.package."*"]
+opt-level = 3

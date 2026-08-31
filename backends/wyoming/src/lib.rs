@@ -28,7 +28,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),
     };
-    let mut detector = wake::from_config(config.wake.mode);
+    let mut detector = wake::from_config(&config.wake)?;
 
     satellite::serve(
         config,
