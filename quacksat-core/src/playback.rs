@@ -158,7 +158,9 @@ impl Player {
             if attempt > 0 {
                 std::thread::sleep(RETRY_DELAY * attempt);
             }
-            let mut child = spawn(&self.program, &self.device)?;
+            let mut child = spawn(&self.program, &self.device).map_err(|e| {
+                anyhow::anyhow!("spawning playback program `{}`: {e}", self.program)
+            })?;
             std::thread::sleep(SETTLE);
             match child.try_wait()? {
                 // Still running, or already finished cleanly (short clip).

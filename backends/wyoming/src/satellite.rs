@@ -109,6 +109,7 @@ fn event_loop(
     deps: &mut Deps,
 ) -> anyhow::Result<()> {
     let mut mode = Mode::Paused;
+    let mut preroll = std::collections::VecDeque::with_capacity(PREROLL_FRAMES);
 
     loop {
         // Poll server events first, then mic frames, so a transcript stops
@@ -132,7 +133,7 @@ fn event_loop(
                     return Ok(());
                 }
             }
-            Input::Frame(frame) => handle_frame(writer, &frame, &mut mode, deps)?,
+            Input::Frame(frame) => handle_frame(writer, &frame, &mut mode, &mut preroll, deps)?,
         }
     }
 }
@@ -209,10 +210,17 @@ fn handle_event(
     Ok(Flow::Open)
 }
 
+/// Pre-roll depth: ~320 ms of audio kept while waiting, flushed on wake so
+/// the attack of the first word reaches ASR (the energy threshold trips a
+/// frame or two after speech actually starts, and Whisper mangles a word
+/// whose first phoneme is missing).
+const PREROLL_FRAMES: usize = 10;
+
 fn handle_frame(
     writer: &mut impl Write,
     frame: &[i16],
     mode: &mut Mode,
+    preroll: &mut std::collections::VecDeque<Vec<i16>>,
     deps: &mut Deps,
 ) -> anyhow::Result<()> {
     match mode {
@@ -242,7 +250,15 @@ fn handle_frame(
                 )?;
                 write_event(writer, &Event::new("audio-start", audio_format()))?;
                 *mode = Mode::Streaming;
+                for buffered in preroll.drain(..) {
+                    write_chunk(writer, &buffered)?;
+                }
                 write_chunk(writer, frame)?;
+            } else {
+                if preroll.len() == PREROLL_FRAMES {
+                    preroll.pop_front();
+                }
+                preroll.push_back(frame.to_vec());
             }
         }
         Mode::Streaming => write_chunk(writer, frame)?,
