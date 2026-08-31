@@ -1,26 +1,44 @@
 [Unit]
 Description=quacksat voice satellite
-After=robotd.service network-online.target
-Wants=network-online.target
-# quacksat is an unprivileged robotd client; it works only if robotd is up.
-BindsTo=robotd.service
+# After, not Requires/BindsTo: a down robotd must not keep the satellite from
+# starting and retrying (ADR 0003). aic3104-init sets the codec mixer at boot.
+After=robotd.service aic3104-init.service local-fs.target network-online.target
+Wants=robotd.service network-online.target
 
 [Service]
-Type=simple
+Type=exec
 ExecStart=/usr/local/bin/quacksat /etc/robot/quacksat.toml
-Restart=on-failure
-RestartSec=2
+Restart=always
+RestartSec=5s
+Environment=RUST_LOG=info
+StandardOutput=journal
+StandardError=journal
 
-# Unprivileged: talk to robotd over its socket, nothing else.
+# Unprivileged (padd pattern): `robot` reaches robotd's 0660 socket,
+# `audio` reaches /dev/snd (ADR 0003). Nothing else.
 User=quacksat
 Group=quacksat
-# Audio group membership is TBD pending ADR 0003 (mic/speaker access).
-SupplementaryGroups=audio
-NoNewPrivileges=true
+SupplementaryGroups=robot audio
+RuntimeDirectory=quacksat
+StateDirectory=quacksat
+
+# Hardening block copied from padd.service; AF_INET/AF_INET6 added for the
+# network backends. No MemoryDenyWriteExecute: the wake-word ML runtime may
+# need executable mappings. Not PrivateDevices: ALSA needs /dev/snd.
+NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-ReadOnlyPaths=/etc/robot
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
