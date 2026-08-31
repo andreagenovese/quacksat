@@ -181,5 +181,5 @@ fn load_model(path: &Path, shape: &[usize]) -> anyhow::Result<Model> {
         .with_input_fact(0, InferenceFact::dt_shape(f32::datum_type(), shape))?
         .into_typed()?
         .into_decluttered()?;
-    model.into_runnable().map_err(Into::into)
+    model.into_runnable()
 }
