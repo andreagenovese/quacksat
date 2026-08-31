@@ -33,6 +33,10 @@ pub struct Config {
 pub struct AudioConfig {
     pub playback_device: String,
     pub capture_device: String,
+    /// Development hook: replace `arecord` with any command that writes raw
+    /// S16_LE 2ch 48kHz audio to stdout (e.g. sox on macOS, a file feeder in
+    /// CI). Unset on the robot, where arecord + capture_device is the path.
+    pub capture_command: Option<Vec<String>>,
 }
 
 impl Default for AudioConfig {
@@ -40,6 +44,7 @@ impl Default for AudioConfig {
         Self {
             playback_device: "plughw:aic3104".to_string(),
             capture_device: "plughw:aic3104,0".to_string(),
+            capture_command: None,
         }
     }
 }
@@ -108,7 +113,22 @@ mod tests {
         .unwrap();
         assert_eq!(config.backend, Backend::None);
         assert_eq!(config.audio.playback_device, "default");
+        assert_eq!(config.audio.capture_command, None);
         assert_eq!(config.wake.mode, WakeMode::Disabled);
+    }
+
+    #[test]
+    fn parses_capture_command_hook() {
+        let config: Config = toml::from_str(
+            "backend = \"none\"\n\
+             [audio]\n\
+             capture_command = [\"sox\", \"-q\", \"-d\"]\n",
+        )
+        .unwrap();
+        assert_eq!(
+            config.audio.capture_command.as_deref(),
+            Some(["sox", "-q", "-d"].map(String::from).as_slice())
+        );
     }
 
     #[test]

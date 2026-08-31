@@ -11,8 +11,9 @@ use super::{FRAME_SAMPLES, HW_CHANNELS, HW_RATE};
 const BYTES_PER_HW_FRAME: usize = HW_CHANNELS * 2;
 
 pub fn spawn_arecord(device: &str) -> anyhow::Result<(Child, ChildStdout)> {
-    let mut child = Command::new("arecord")
-        .args([
+    spawn_command(
+        "arecord",
+        &[
             "-q",
             "-D",
             device,
@@ -24,7 +25,22 @@ pub fn spawn_arecord(device: &str) -> anyhow::Result<(Child, ChildStdout)> {
             &HW_RATE.to_string(),
             "-t",
             "raw",
-        ])
+        ],
+    )
+}
+
+/// Development hook: any command writing raw S16_LE 2ch 48kHz to stdout.
+pub fn spawn_custom(command: &[String]) -> anyhow::Result<(Child, ChildStdout)> {
+    let (program, args) = command
+        .split_first()
+        .ok_or_else(|| anyhow::anyhow!("capture_command is empty"))?;
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    spawn_command(program, &args)
+}
+
+fn spawn_command(program: &str, args: &[&str]) -> anyhow::Result<(Child, ChildStdout)> {
+    let mut child = Command::new(program)
+        .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;

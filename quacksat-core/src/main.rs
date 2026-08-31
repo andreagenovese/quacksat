@@ -41,13 +41,16 @@ fn run_bringup(config: &Config) -> anyhow::Result<()> {
         }
     };
 
-    let (mut child, stdout) = audio::capture::spawn_arecord(&config.audio.capture_device)
-        .with_context(|| {
+    let (mut child, stdout) = match &config.audio.capture_command {
+        Some(command) => audio::capture::spawn_custom(command)
+            .with_context(|| format!("starting capture command {command:?}"))?,
+        None => audio::capture::spawn_arecord(&config.audio.capture_device).with_context(|| {
             format!(
                 "starting capture on {} (is arecord installed? is pet_detect holding the mic?)",
                 config.audio.capture_device
             )
-        })?;
+        })?,
+    };
     let (tx, rx) = sync_channel(32);
     std::thread::spawn(move || {
         if let Err(e) = audio::capture::pump(stdout, tx) {
@@ -56,7 +59,10 @@ fn run_bringup(config: &Config) -> anyhow::Result<()> {
             tracing::error!(error = %e, "capture stopped");
         }
     });
-    tracing::info!(device = %config.audio.capture_device, "listening");
+    match &config.audio.capture_command {
+        Some(command) => tracing::info!(?command, "listening (custom capture)"),
+        None => tracing::info!(device = %config.audio.capture_device, "listening"),
+    }
 
     let mut vad = Vad::new();
     let mut detector = wake::from_config(config.wake.mode);
