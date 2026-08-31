@@ -200,8 +200,14 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
         match mic {
             Mic::Idle => {
                 if deps.detector.feed(&frame) {
-                    let model = deps.config.wake.model.clone();
+                    let model = match deps.config.wake.mode {
+                        quacksat_core::config::WakeMode::Openwakeword => {
+                            deps.config.wake.model.clone()
+                        }
+                        other => format!("{other:?}").to_lowercase(),
+                    };
                     tracing::info!("wake");
+                    chirp(deps.control);
                     send_json(&mut ws, &json!({"type": "wake", "model": model}))?;
                     enter_streaming(&mut mic, &mut vad, &mut streamed_frames, &mut speech_seen);
                     for buffered in preroll.drain(..) {
@@ -250,6 +256,28 @@ fn stop_streaming(mic: &mut Mic, deps: &mut Deps) {
     *mic = Mic::Idle;
     // Forget the utterance so the detector cannot wake on its own tail.
     deps.detector.reset();
+}
+
+/// The wake acknowledgement stays robotd's job (ADR 0003): a chirp from
+/// the duck itself, independent of the bridge round-trip.
+fn chirp(control: &mut Option<Control>) {
+    use duck_ipc_proto as proto;
+    if let Some(c) = control {
+        let call = proto::Call::RobotSound(proto::SoundParams {
+            tag: proto::SoundTag::Chirp,
+            hold: None,
+        });
+        match c.intent(&call) {
+            Ok(result) if !result.accepted => {
+                tracing::debug!(reason = ?result.reason, "chirp refused")
+            }
+            Ok(_) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "robotd lost — continuing without it");
+                *control = None;
+            }
+        }
+    }
 }
 
 fn send_json(ws: &mut Ws, event: &Value) -> anyhow::Result<()> {

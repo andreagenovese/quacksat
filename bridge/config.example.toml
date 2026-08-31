@@ -1,0 +1,43 @@
+# quacksat reference bridge — copy to config.toml and adjust.
+# All three AI services are OpenAI-dialect endpoints: url + key.
+
+[server]
+bind = "0.0.0.0"
+port = 8765
+# Bearer token the satellite must present ([agent].token in quacksat.toml).
+# Empty = no auth (trusted LAN).
+token = ""
+
+[llm]
+# Any /chat/completions endpoint. Arkimede preset:
+#   base_url = "http://<server>:3000/api/openai/v1", api_key = "ak_...",
+#   model = "arkimede" (or an agent slug), tool_calling = false
+#   (Arkimede executes tools internally; robot tools arrive via MCP).
+base_url = "http://localhost:11434/v1"
+api_key = ""
+model = "arkimede"
+tool_calling = true
+max_tool_rounds = 5
+system_prompt = "You are a small robot duck called quacksat. Answer briefly, in the language the user speaks. Use your robot tools when asked to move, look, or act."
+
+[stt]
+# Any /audio/transcriptions endpoint. Arkimede exposes its Whisper at
+# http://<server>:3000/api/openai/v1 with an ak_ key; a local
+# faster-whisper server (speaches, LocalAI) works the same way.
+base_url = "http://localhost:9000/v1"
+api_key = ""
+model = ""
+language = "it"
+
+[tts]
+# Any /audio/speech endpoint returning WAV. Arkimede's piper-service via
+# the backend, or a local openedai-speech/LocalAI.
+base_url = "http://localhost:9100/v1"
+api_key = ""
+model = "piper"
+voice = "it_IT-paola-medium"
+
+[behavior]
+# Reopen the mic after each reply (multi-turn without wake word).
+follow_up = false
+history_max_messages = 20
