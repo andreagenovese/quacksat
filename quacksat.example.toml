@@ -1,9 +1,21 @@
 # quacksat configuration — install as /etc/robot/quacksat.toml
 
-# Voice backend: "wyoming" (Home Assistant Assist satellite)
-# or "agent" (WebSocket bridge to an STT → LLM → TTS agent).
-backend = "wyoming"
+# Voice backend:
+#   "none"    → bring-up mode: capture + VAD + wake, chirp on wake, no conversation
+#   "wyoming" → Home Assistant Assist satellite (Wyoming protocol)
+#   "agent"   → WebSocket bridge to an STT → LLM → TTS agent
+backend = "none"
 
 # Path to the robotd JSON-RPC unix socket.
 # For remote development against a forwarded socket, use /tmp/robotd.sock.
 robotd_socket = "/run/robotd.sock"
+
+[audio]
+# ALSA devices (ADR 0003). Capture needs audio.pet_detect = false in
+# /etc/robot/robotd.toml — the factory default.
+playback_device = "plughw:aic3104"
+capture_device = "plughw:aic3104,0"
+
+[wake]
+# "energy" (bring-up: every utterance wakes) or "disabled".
+mode = "energy"
