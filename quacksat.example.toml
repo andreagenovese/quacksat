@@ -22,3 +22,12 @@ capture_device = "plughw:aic3104,0"
 [wake]
 # "energy" (bring-up: every utterance wakes) or "disabled".
 mode = "energy"
+
+[wyoming]
+# Where the satellite listens; point Home Assistant's Wyoming integration
+# at this host and port (Settings → Devices & Services → Add integration
+# → Wyoming Protocol).
+bind = "0.0.0.0:10700"
+# Name shown in Home Assistant; optional area hint.
+name = "quacksat"
+# area = "Living room"

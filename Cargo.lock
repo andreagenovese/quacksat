@@ -181,6 +181,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "quacksat"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "duck-ipc-proto",
+ "quacksat-backend-wyoming",
+ "quacksat-core",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "quacksat-backend-agent"
 version = "0.1.0"
 dependencies = [
@@ -195,8 +207,11 @@ name = "quacksat-backend-wyoming"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "duck-ipc-proto",
  "quacksat-core",
- "tokio",
+ "serde_json",
+ "tempfile",
+ "toml",
  "tracing",
 ]
 

@@ -83,6 +83,52 @@ impl Player {
         Ok(())
     }
 
+    /// Start a streaming raw-PCM playback (TTS from a backend): chunks are
+    /// written as they arrive with [`Self::write_stream`], and
+    /// [`Self::end_stream`] closes the input and waits for the sound to
+    /// finish — the synchronous completion point half-duplex needs.
+    pub fn begin_stream(&mut self, rate: u32, channels: u16) -> anyhow::Result<()> {
+        self.stop();
+        self.spawn_with_retry(|program, device| {
+            Command::new(program)
+                .args([
+                    "-q",
+                    "-D",
+                    device,
+                    "-t",
+                    "raw",
+                    "-f",
+                    "S16_LE",
+                    "-c",
+                    &channels.to_string(),
+                    "-r",
+                    &rate.to_string(),
+                ])
+                .stdin(Stdio::piped())
+                .stderr(Stdio::null())
+                .spawn()
+        })
+    }
+
+    /// Write one chunk of the stream started by [`Self::begin_stream`].
+    /// A killed or finished child makes this a no-op rather than an error.
+    pub fn write_stream(&mut self, bytes: &[u8]) {
+        if let Some(child) = &mut self.child
+            && let Some(stdin) = &mut child.stdin
+            && stdin.write_all(bytes).is_err()
+        {
+            child.stdin = None;
+        }
+    }
+
+    /// Close the stream and block until playback drains.
+    pub fn end_stream(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            drop(child.stdin.take());
+            let _ = child.wait();
+        }
+    }
+
     /// Kill and reap the current playback, if any.
     pub fn stop(&mut self) {
         if let Some(mut child) = self.child.take() {
@@ -161,6 +207,26 @@ mod tests {
             .play_wav(std::path::Path::new("/dev/null"))
             .unwrap_err();
         assert!(err.to_string().contains("busy"), "unexpected error: {err}");
+    }
+
+    #[test]
+    fn streaming_playback_completes_on_end_stream() {
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("fake-aplay");
+        std::fs::write(&script, "#!/bin/sh\nexec cat > /dev/null\n").unwrap();
+        let mut perms = std::fs::metadata(&script).unwrap().permissions();
+        use std::os::unix::fs::PermissionsExt;
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&script, perms).unwrap();
+
+        let mut player = Player::with_program("ignored", script.to_str().unwrap());
+        player.begin_stream(22_050, 1).unwrap();
+        assert!(player.is_playing());
+        player.write_stream(&[0u8; 4096]);
+        player.end_stream();
+        assert!(!player.is_playing());
+        // Writing after the stream ended is a no-op, not a panic.
+        player.write_stream(&[0u8; 16]);
     }
 
     #[test]

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
 members = [
+    "quacksat",
     "quacksat-core",
     "backends/wyoming",
     "backends/agent",
@@ -28,6 +29,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
 
 quacksat-core = { path = "quacksat-core" }
+quacksat-backend-wyoming = { path = "backends/wyoming" }
+quacksat-backend-agent = { path = "backends/agent" }
 
 # Profile tuned for the board (RK3566, 1 GB RAM): small binary.
 [profile.release]

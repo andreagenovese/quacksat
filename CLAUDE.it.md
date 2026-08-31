@@ -35,6 +35,7 @@ quacksat/
 ├── docs/
 │   ├── study/      ← i documenti di studio già prodotti (vedi sotto)
 │   └── adr/        ← 0001-repo-separato, 0002-backend-intercambiabili, ...
+├── quacksat/       ← il binario: config, cattura, dispatch dei backend
 ├── quacksat-core/  ← mic, wake word, VAD, speaker, tool robot → robotd
 ├── backends/wyoming/ · backends/agent/
 ├── bridge/         ← riferimento lato server per la strada B

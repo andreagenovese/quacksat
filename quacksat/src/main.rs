@@ -1,4 +1,5 @@
-use std::sync::mpsc::sync_channel;
+use std::process::Child;
+use std::sync::mpsc::{Receiver, sync_channel};
 
 use anyhow::Context;
 use duck_ipc_proto as proto;
@@ -22,26 +23,21 @@ fn main() -> anyhow::Result<()> {
 
     tracing::info!(backend = ?config.backend, "quacksat starting");
 
-    match config.backend {
-        Backend::None => run_bringup(&config),
-        Backend::Wyoming => anyhow::bail!("wyoming backend not implemented yet"),
+    let (mut capture_child, frames) = start_capture(&config)?;
+    let result = match config.backend {
+        Backend::None => run_bringup(&config, frames),
+        Backend::Wyoming => quacksat_backend_wyoming::run(&config, frames),
         Backend::Agent => anyhow::bail!("agent backend not implemented yet"),
-    }
+    };
+    let _ = capture_child.kill();
+    let _ = capture_child.wait();
+    result
 }
 
-/// Bring-up mode: capture → VAD → wake, chirping through robotd on wake.
-/// Exercises every core piece against `robotd --fake` or the real robot
-/// without needing a voice backend.
-fn run_bringup(config: &Config) -> anyhow::Result<()> {
-    let mut control = match Control::connect(&config.robotd_socket) {
-        Ok(control) => Some(control),
-        Err(e) => {
-            tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-            None
-        }
-    };
-
-    let (mut child, stdout) = match &config.audio.capture_command {
+/// Start the continuous capture (ADR 0003) and its pump thread; every
+/// backend consumes the same 16 kHz mono frame stream.
+fn start_capture(config: &Config) -> anyhow::Result<(Child, Receiver<Vec<i16>>)> {
+    let (child, stdout) = match &config.audio.capture_command {
         Some(command) => audio::capture::spawn_custom(command)
             .with_context(|| format!("starting capture command {command:?}"))?,
         None => audio::capture::spawn_arecord(&config.audio.capture_device).with_context(|| {
@@ -63,11 +59,25 @@ fn run_bringup(config: &Config) -> anyhow::Result<()> {
         Some(command) => tracing::info!(?command, "listening (custom capture)"),
         None => tracing::info!(device = %config.audio.capture_device, "listening"),
     }
+    Ok((child, rx))
+}
+
+/// Bring-up mode: capture → VAD → wake, chirping through robotd on wake.
+/// Exercises every core piece against `robotd --fake` or the real robot
+/// without needing a voice backend.
+fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()> {
+    let mut control = match Control::connect(&config.robotd_socket) {
+        Ok(control) => Some(control),
+        Err(e) => {
+            tracing::warn!(error = %e, "robotd unreachable — running without the robot");
+            None
+        }
+    };
 
     let mut vad = Vad::new();
     let mut detector = wake::from_config(config.wake.mode);
 
-    for frame in rx {
+    for frame in frames {
         match vad.feed(&frame) {
             Some(VadEvent::SpeechStart) => tracing::debug!("speech start"),
             Some(VadEvent::SpeechEnd) => tracing::debug!("speech end"),
@@ -91,8 +101,5 @@ fn run_bringup(config: &Config) -> anyhow::Result<()> {
             }
         }
     }
-
-    let _ = child.kill();
-    let _ = child.wait();
     anyhow::bail!("capture channel closed")
 }

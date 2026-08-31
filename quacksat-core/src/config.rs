@@ -24,6 +24,31 @@ pub struct Config {
     pub audio: AudioConfig,
     #[serde(default)]
     pub wake: WakeConfig,
+    #[serde(default)]
+    pub wyoming: WyomingConfig,
+}
+
+/// Settings for the `wyoming` backend (Home Assistant Assist satellite).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct WyomingConfig {
+    /// Where the satellite listens for Home Assistant; HA's Wyoming
+    /// integration is pointed at this host:port.
+    pub bind: String,
+    /// Satellite name shown in Home Assistant.
+    pub name: String,
+    /// Optional Home Assistant area hint.
+    pub area: Option<String>,
+}
+
+impl Default for WyomingConfig {
+    fn default() -> Self {
+        Self {
+            bind: "0.0.0.0:10700".to_string(),
+            name: "quacksat".to_string(),
+            area: None,
+        }
+    }
 }
 
 /// ALSA device names (ADR 0003). Capture is 2ch/48kHz on the aic3104 codec;

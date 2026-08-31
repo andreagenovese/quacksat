@@ -29,6 +29,7 @@ crashes or hangs, robotd's deadman keeps the robot safe.
 ## Repository layout
 
 ```
+quacksat/           the binary: config loading, capture, backend dispatch
 quacksat-core/      mic capture, wake word, VAD, speaker, robot tools → robotd
 backends/wyoming/   Home Assistant Assist satellite backend
 backends/agent/     AI agent backend (WebSocket to a bridge)

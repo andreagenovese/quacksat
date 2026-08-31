@@ -30,7 +30,8 @@ sicuro.
 ## Struttura del repository
 
 ```
-quacksat-core/      mic capture, wake word, VAD, speaker, robot tools → robotd
+quacksat/           il binario: caricamento config, cattura, dispatch dei backend
+quacksat-core/      cattura mic, wake word, VAD, speaker, tool robot → robotd
 backends/wyoming/   Home Assistant Assist satellite backend
 backends/agent/     AI agent backend (WebSocket to a bridge)
 bridge/             minimal reference bridge for the agent backend
