@@ -26,6 +26,27 @@ pub struct Config {
     pub wake: WakeConfig,
     #[serde(default)]
     pub wyoming: WyomingConfig,
+    #[serde(default)]
+    pub agent: AgentConfig,
+}
+
+/// Settings for the `agent` backend (WebSocket bridge, ADR 0004).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AgentConfig {
+    /// Bridge WebSocket URL (`ws://` or `wss://`).
+    pub url: String,
+    /// Optional bearer token sent on the WebSocket upgrade.
+    pub token: Option<String>,
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            url: "ws://127.0.0.1:8765".to_string(),
+            token: None,
+        }
+    }
 }
 
 /// Settings for the `wyoming` backend (Home Assistant Assist satellite).

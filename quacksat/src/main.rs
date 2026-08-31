@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     let result = match config.backend {
         Backend::None => run_bringup(&config, frames),
         Backend::Wyoming => quacksat_backend_wyoming::run(&config, frames),
-        Backend::Agent => anyhow::bail!("agent backend not implemented yet"),
+        Backend::Agent => quacksat_backend_agent::run(&config, frames),
     };
     let _ = capture_child.kill();
     let _ = capture_child.wait();

@@ -35,6 +35,12 @@ model = "hey_jarvis_v0.1.onnx"
 # Detection threshold on the 0..1 score.
 threshold = 0.5
 
+[agent]
+# The bridge WebSocket URL (agent backend, ADR 0004) and optional
+# bearer token for the upgrade request.
+url = "ws://127.0.0.1:8765"
+# token = "..."
+
 [wyoming]
 # Where the satellite listens; point Home Assistant's Wyoming integration
 # at this host and port (Settings → Devices & Services → Add integration
