@@ -93,7 +93,7 @@ Il bridge non incorpora ML: LLM (`/chat/completions`), STT
 configurabili in dialetto OpenAI. I deployment locali rispettosi della
 privacy usano server in dialetto OpenAI già esistenti; il preset
 Arkimede è pura configurazione una volta che Arkimede esporrà le sue
-rotte audio (brief nel suo repo: `docs/VOICE_AUDIO_SERVICES.md`).
+rotte audio.
 
 ### 7. Le sessioni sono stateless sul filo
 

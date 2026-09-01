@@ -74,9 +74,7 @@ design della strada B; il contratto wire vive in ADR 0004 +
    LocalAI); il repo include un docker-compose d'esempio. Il **preset
    Arkimede è pura configurazione**: LLM su `/api/openai/v1` con chiave
    `ak_` (funziona oggi), STT sulla sua rotta audio e TTS quando
-   Arkimede li esporrà — vedi `docs/VOICE_AUDIO_SERVICES.md` nel repo
-   di Arkimede per quel lavoro. Zero codice specifico per Arkimede nel
-   bridge.
+   Arkimede li esporrà. Zero codice specifico per Arkimede nel bridge.
 
 ## Ordine dei lavori (tutto consegnato)
 

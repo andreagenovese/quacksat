@@ -68,9 +68,8 @@ details. Italian copy: `agent-backend-plan.it.md`.
    faster-whisper-server, openedai-speech for Piper, LocalAI); the repo
    ships a docker-compose example. The **Arkimede preset is pure
    configuration**: LLM on `/api/openai/v1` with an `ak_` key (works
-   today), STT on its audio route and TTS once Arkimede exposes them —
-   see `docs/VOICE_AUDIO_SERVICES.md` in the Arkimede repo for that
-   work. Zero Arkimede-specific code in the bridge.
+   today), STT on its audio route and TTS once Arkimede exposes them.
+   Zero Arkimede-specific code in the bridge.
 
 ## Order of work (all delivered)
 

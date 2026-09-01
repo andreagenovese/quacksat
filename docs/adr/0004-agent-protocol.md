@@ -83,8 +83,7 @@ The bridge embeds no ML: LLM (`/chat/completions`), STT
 (`/audio/transcriptions`), TTS (`/audio/speech`) are three configurable
 OpenAI-dialect endpoints. Local privacy-preserving deployments use
 existing OpenAI-dialect servers; the Arkimede preset is pure
-configuration once Arkimede exposes its audio routes (brief in its
-repo: `docs/VOICE_AUDIO_SERVICES.md`).
+configuration once Arkimede exposes its audio routes.
 
 ### 7. Sessions are stateless on the wire
 
