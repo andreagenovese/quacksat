@@ -182,7 +182,8 @@ a body. The timeline, common to all three backends:
 If the agent starts acting mid-wait (a tool call arrives), the pose
 yields the body without recentering — a recenter would clobber a
 tool-driven head move — while the clock keeps running toward the
-timeout. The bridge now reports an empty transcript and a failed turn
+timeout; once the tool finishes the sway resumes, unless the tool
+itself posed the head (`robot.head` / `robot.look`). The bridge now reports an empty transcript and a failed turn
 as protocol `error` events, so the satellite stops waiting promptly
 instead of discovering the silence at the timeout.
 

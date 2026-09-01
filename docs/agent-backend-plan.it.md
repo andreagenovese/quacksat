@@ -194,7 +194,9 @@ di meglio: un corpo. La timeline, comune ai tre backend:
 Se l'agente inizia ad agire durante l'attesa (arriva una tool call),
 la posa cede il corpo senza ricentrare — un ricentraggio
 calpesterebbe un movimento della testa comandato da un tool — mentre
-il cronometro continua a correre verso il timeout. Il bridge ora
+il cronometro continua a correre verso il timeout; finito il tool
+l'oscillazione riprende, a meno che il tool stesso non abbia messo in
+posa la testa (`robot.head` / `robot.look`). Il bridge ora
 segnala trascrizione vuota e turno fallito come eventi `error` di
 protocollo, così il satellite smette subito di aspettare invece di
 scoprire il silenzio al timeout.

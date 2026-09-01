@@ -227,7 +227,12 @@ fn run_turn(
                 .and_then(|raw| serde_json::from_str(raw).ok())
                 .unwrap_or_else(|| json!({}));
             tracing::info!(tool = %wire_name, %args, "tool call");
-            acting.store(true, Ordering::Relaxed);
+            // robot.head / robot.look pose the head on purpose: the
+            // thinking sway must not clobber them. Any other tool
+            // leaves the head free and the sway keeps going.
+            if matches!(wire_name.as_str(), "robot.head" | "robot.look") {
+                acting.store(true, Ordering::Relaxed);
+            }
             let mut guard = mcp::lock(control);
             let result = match tools::execute(&wire_name, &args, &mut guard) {
                 Ok(data) => json!({"ok": true, "data": data}),

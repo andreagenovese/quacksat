@@ -93,6 +93,9 @@ impl ThinkingPose {
             head_roll: TILT_ROLL,
         };
         if notify_head(control, params) {
+            if !self.swaying {
+                tracing::info!("thinking pose: swaying while the answer cooks");
+            }
             self.swaying = true;
         }
     }
@@ -102,6 +105,7 @@ impl ThinkingPose {
     pub fn end(&mut self, control: &mut Option<Control>) {
         if std::mem::take(&mut self.swaying) {
             notify_head(control, proto::HeadParams::default());
+            tracing::info!("thinking pose: answer arrived, head recentered");
         }
         self.waiting_since = None;
         self.yielded = false;
@@ -112,8 +116,17 @@ impl ThinkingPose {
     /// head move is not clobbered — but keep the clock running: a bridge
     /// that dies after a tool call must still hit the timeout.
     pub fn release(&mut self) {
+        if self.swaying {
+            tracing::debug!("thinking pose: yielding the body to the agent");
+        }
         self.swaying = false;
         self.yielded = true;
+    }
+
+    /// The tool finished and did not pose the head itself: thinking
+    /// continues, so the sway may resume on the next tick.
+    pub fn resume(&mut self) {
+        self.yielded = false;
     }
 }
 
@@ -270,9 +283,13 @@ mod tests {
         pose.last_tick = Instant::now() - TICK;
         pose.tick(&mut control); // must send nothing after release
         assert!(!pose.swaying);
+        pose.resume();
+        pose.last_tick = Instant::now() - TICK;
+        pose.tick(&mut control); // sways again after resume
+        assert!(pose.swaying);
         drop(control); // close the socket so the server thread finishes
 
-        // Exactly one line: the sway. No recenter after release.
-        assert_eq!(server.join().unwrap(), 1);
+        // Two sways (before release, after resume) and no recenter.
+        assert_eq!(server.join().unwrap(), 2);
     }
 }

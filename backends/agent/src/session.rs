@@ -169,6 +169,12 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                             }
                         };
                         send_json(&mut ws, &reply)?;
+                        // robot.head / robot.look posed the head on
+                        // purpose; any other tool leaves it free, so
+                        // thinking may resume.
+                        if !matches!(name, "robot.head" | "robot.look") {
+                            pose.resume();
+                        }
                     }
                     "ping" => {
                         let mut pong = event.clone();
