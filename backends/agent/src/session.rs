@@ -12,6 +12,7 @@ use quacksat_core::audio::{FRAME_SAMPLES, PIPELINE_RATE};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::robotd::Control;
+use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::vad::{Vad, VadEvent};
 use quacksat_core::wake::WakeDetector;
 use serde_json::{Value, json};
@@ -80,6 +81,8 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
     let mut speech_seen = false;
     let mut playing_tts = false;
     let mut listen_after_tts = false;
+    let mut pose = ThinkingPose::from_config(&deps.config.thinking);
+    let reply_timeout = Duration::from_secs_f32(deps.config.thinking.timeout_s);
 
     loop {
         // 1. Socket first, so listen.stop / tool calls beat mic frames.
@@ -119,6 +122,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         }
                     }
                     "tts.start" => {
+                        pose.end(deps.control);
                         let rate =
                             event.get("rate").and_then(Value::as_u64).unwrap_or(22_050) as u32;
                         let channels =
@@ -148,6 +152,9 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         }
                     }
                     "tool.call" => {
+                        // The agent is acting: the body is its now (the
+                        // clock keeps running toward the reply timeout).
+                        pose.release();
                         let id = event.get("id").and_then(Value::as_str).unwrap_or("");
                         let name = event.get("name").and_then(Value::as_str).unwrap_or("");
                         let args = event.get("args").cloned().unwrap_or_else(|| json!({}));
@@ -171,6 +178,10 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                     "error" => {
                         let message = event.get("message").and_then(Value::as_str).unwrap_or("");
                         tracing::warn!(message, "bridge error");
+                        if pose.waited().is_some() {
+                            pose.end(deps.control);
+                            sad_ack(deps);
+                        }
                     }
                     other => tracing::debug!(event = other, "ignored event"),
                 }
@@ -192,6 +203,18 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                 return Ok(());
             }
             Err(e) => return Err(e.into()),
+        }
+
+        // Between an utterance and its reply: hold the thinking pose, and
+        // give up with the sad tock if the agent never answers.
+        pose.tick(deps.control);
+        if pose.waited().is_some_and(|waited| waited > reply_timeout) {
+            tracing::warn!(
+                timeout_s = deps.config.thinking.timeout_s,
+                "no reply from the agent"
+            );
+            pose.end(deps.control);
+            sad_ack(deps);
         }
 
         // 2. Then the mic — draining the whole backlog: the socket poll
@@ -245,6 +268,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         Some(VadEvent::SpeechEnd) => {
                             send_json(&mut ws, &json!({"type": "utterance.end"}))?;
                             stop_streaming(&mut mic, deps);
+                            pose.begin();
                             continue;
                         }
                         None => {}
@@ -255,6 +279,11 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         tracing::debug!(streamed_frames, speech_seen, "utterance timeout");
                         send_json(&mut ws, &json!({"type": "utterance.end"}))?;
                         stop_streaming(&mut mic, deps);
+                        // A silent turn gets no answer: expecting one would
+                        // end in a spurious sad tock.
+                        if speech_seen {
+                            pose.begin();
+                        }
                     }
                 }
             }
@@ -310,6 +339,17 @@ fn wake_ack(deps: &mut Deps) {
     };
     if let Err(e) = result {
         tracing::debug!(error = %e, "wake ack not played");
+    }
+}
+
+/// The give-up sound: robotd's low peck tock, or the local synthesized
+/// sigh when the robot cannot play one.
+fn sad_ack(deps: &mut Deps) {
+    if quacksat_core::thinking::sad_tock(deps.control) {
+        return;
+    }
+    if let Err(e) = deps.player.play_pcm(quacksat_core::playback::sad_pcm()) {
+        tracing::debug!(error = %e, "sad ack not played");
     }
 }
 

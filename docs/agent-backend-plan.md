@@ -162,6 +162,30 @@ the quacksat version is distributed voice presence. It took exactly
 what was predicted: registry map plus wake arbitration in the bridge,
 one config field on the satellite, zero protocol changes.
 
+## Implemented: the thinking cue (body language while waiting)
+
+Between a command and the reply several seconds can pass with the duck
+silent and still — indistinguishable from a duck that did not hear.
+Voice PE solves this with its LED ring; the duck has something better:
+a body. The timeline, common to all three backends:
+
+- utterance closed → nothing (fast replies deserve no theatrics);
+- after `[thinking] delay_s` (default 1 s) → the pensive pose: a slight
+  head tilt with a slow yaw sway, a throttled `robot.head` resend in
+  the same shape as the `robot.move` pump;
+- reply arrives (`tts.start` / `audio-start`) → the head recenters,
+  the duck speaks;
+- timeout (`[thinking] timeout_s`, default 30 s) or a protocol error →
+  a low "peck" tock instead of silence (locally synthesized when
+  robotd cannot play one).
+
+If the agent starts acting mid-wait (a tool call arrives), the pose
+yields the body without recentering — a recenter would clobber a
+tool-driven head move — while the clock keeps running toward the
+timeout. The bridge now reports an empty transcript and a failed turn
+as protocol `error` events, so the satellite stops waiting promptly
+instead of discovering the silence at the timeout.
+
 ## Out of scope (deliberate)
 
 - Barge-in (needs AEC — ADR 0003 defers it).

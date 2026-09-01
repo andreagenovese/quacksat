@@ -15,6 +15,7 @@ use quacksat_core::audio::{FRAME_SAMPLES, PIPELINE_RATE};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::robotd::Control;
+use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::wake::WakeDetector;
 use serde_json::{Value, json};
 
@@ -110,8 +111,22 @@ fn event_loop(
 ) -> anyhow::Result<()> {
     let mut mode = Mode::Paused;
     let mut preroll = std::collections::VecDeque::with_capacity(PREROLL_FRAMES);
+    let mut pose = ThinkingPose::from_config(&deps.config.thinking);
+    let reply_timeout = std::time::Duration::from_secs_f32(deps.config.thinking.timeout_s);
 
     loop {
+        // Between the transcript and the pipeline's TTS: hold the thinking
+        // pose, and give up with the sad tock if HA never answers.
+        pose.tick(deps.control);
+        if pose.waited().is_some_and(|waited| waited > reply_timeout) {
+            tracing::warn!(
+                timeout_s = deps.config.thinking.timeout_s,
+                "no reply from the pipeline"
+            );
+            pose.end(deps.control);
+            sad_ack(deps);
+        }
+
         // Poll server events first, then mic frames, so a transcript stops
         // the streaming before more chunks go out.
         let input = match rx.try_recv() {
@@ -129,7 +144,7 @@ fn event_loop(
         match input {
             Input::Disconnected => return Ok(()),
             Input::Event(event) => {
-                if handle_event(writer, &event, &mut mode, deps)? == Flow::Closed {
+                if handle_event(writer, &event, &mut mode, &mut pose, deps)? == Flow::Closed {
                     return Ok(());
                 }
             }
@@ -150,6 +165,7 @@ fn handle_event(
     writer: &mut impl Write,
     event: &Event,
     mode: &mut Mode,
+    pose: &mut ThinkingPose,
     deps: &mut Deps,
 ) -> anyhow::Result<Flow> {
     match event.event_type.as_str() {
@@ -162,6 +178,7 @@ fn handle_event(
         }
         "pause-satellite" => {
             *mode = Mode::Paused;
+            pose.end(deps.control);
             deps.player.stop();
             tracing::info!("satellite paused by home assistant");
         }
@@ -175,8 +192,14 @@ fn handle_event(
             }
             let text = event.data.get("text").and_then(Value::as_str).unwrap_or("");
             tracing::info!(text, "transcript");
+            // The pipeline is now off computing the answer. An empty
+            // transcript gets none — HA reports that as its own error.
+            if !text.is_empty() {
+                pose.begin();
+            }
         }
         "audio-start" => {
+            pose.end(deps.control);
             let rate = event
                 .data
                 .get("rate")
@@ -205,6 +228,10 @@ fn handle_event(
         "error" => {
             let text = event.data.get("text").and_then(Value::as_str).unwrap_or("");
             tracing::warn!(text, "pipeline error");
+            if pose.waited().is_some() {
+                pose.end(deps.control);
+                sad_ack(deps);
+            }
             if *mode == Mode::Streaming {
                 *mode = Mode::Waiting;
                 deps.detector.reset();
@@ -315,6 +342,17 @@ fn chirp(control: &mut Option<Control>) -> bool {
 
 /// Local fallback wake acknowledgement, so the user hears the duck is
 /// listening even when robotd cannot quack (dev machine, empty bank).
+/// The give-up sound: robotd's low peck tock, or the local synthesized
+/// sigh when the robot cannot play one.
+fn sad_ack(deps: &mut Deps) {
+    if quacksat_core::thinking::sad_tock(deps.control) {
+        return;
+    }
+    if let Err(e) = deps.player.play_pcm(quacksat_core::playback::sad_pcm()) {
+        tracing::debug!(error = %e, "sad ack not played");
+    }
+}
+
 fn wake_ack(deps: &mut Deps) {
     let result = match &deps.config.audio.wake_sound {
         Some(path) => deps.player.play_wav(std::path::Path::new(path)),

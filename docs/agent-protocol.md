@@ -174,6 +174,11 @@ Informational; the session continues.
 {"type": "error", "message": "stt failed: connection refused"}
 ```
 
+Servers should send one whenever a turn produces no reply (empty
+transcript, failed STT/LLM): the satellite treats it as the end of the
+wait — it drops its thinking pose and plays the give-up tock instead
+of sitting silent until its reply timeout.
+
 ### `ping`
 
 ```json

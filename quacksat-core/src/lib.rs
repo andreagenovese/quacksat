@@ -5,6 +5,7 @@ pub mod audio;
 pub mod config;
 pub mod playback;
 pub mod robotd;
+pub mod thinking;
 pub mod tools;
 pub mod vad;
 pub mod wake;

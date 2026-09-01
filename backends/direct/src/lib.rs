@@ -12,12 +12,14 @@ pub mod mcp;
 mod openai;
 mod speakable;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 
 use duck_ipc_proto as proto;
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::robotd::Control;
+use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::tools;
 use quacksat_core::vad::{Vad, VadEvent};
 use quacksat_core::wake;
@@ -86,7 +88,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             let Some(utterance) = record_utterance(&frames, &mut player)? else {
                 break; // silence — back to the wake word
             };
-            match run_turn(config, &utterance, &mut history, &tools_catalog, &control) {
+            match run_turn_posed(config, &utterance, &mut history, &tools_catalog, &control) {
                 Ok(Some(reply)) => {
                     speak(config, &mut player, &reply);
                     while frames.try_recv().is_ok() {}
@@ -96,8 +98,14 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
                         continue;
                     }
                 }
-                Ok(None) => tracing::info!("turn: nothing recognized"),
-                Err(e) => tracing::warn!(error = %e, "turn failed"),
+                Ok(None) => {
+                    tracing::info!("turn: nothing recognized");
+                    sad_ack(&control, &mut player);
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "turn failed");
+                    sad_ack(&control, &mut player);
+                }
             }
             break;
         }
@@ -141,12 +149,50 @@ fn record_utterance(
     }
 }
 
+/// Run one turn with the thinking pose alongside: the STT → LLM → TTS
+/// round is blocking HTTP, so the pose ticks from a scoped thread through
+/// the shared robotd handle. Once a tool executes the body is the
+/// agent's: the pose stops without recentering (`acting`, the same
+/// semantics as `ThinkingPose::release`).
+fn run_turn_posed(
+    config: &Config,
+    utterance: &[i16],
+    history: &mut Vec<Value>,
+    tools_catalog: &Value,
+    control: &mcp::SharedControl,
+) -> anyhow::Result<Option<String>> {
+    let stop = AtomicBool::new(false);
+    let acting = AtomicBool::new(false);
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            let mut pose = ThinkingPose::from_config(&config.thinking);
+            pose.begin();
+            while !stop.load(Ordering::Relaxed) {
+                if acting.load(Ordering::Relaxed) {
+                    pose.release();
+                }
+                {
+                    let mut guard = mcp::lock(control);
+                    pose.tick(&mut guard);
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            let mut guard = mcp::lock(control);
+            pose.end(&mut guard);
+        });
+        let result = run_turn(config, utterance, history, tools_catalog, control, &acting);
+        stop.store(true, Ordering::Relaxed);
+        result
+    })
+}
+
 fn run_turn(
     config: &Config,
     utterance: &[i16],
     history: &mut Vec<Value>,
     tools_catalog: &Value,
     control: &mcp::SharedControl,
+    acting: &AtomicBool,
 ) -> anyhow::Result<Option<String>> {
     let wav = openai::pcm_to_wav(utterance, quacksat_core::audio::PIPELINE_RATE);
     let text = openai::transcribe(&config.direct.stt, wav)?;
@@ -181,6 +227,7 @@ fn run_turn(
                 .and_then(|raw| serde_json::from_str(raw).ok())
                 .unwrap_or_else(|| json!({}));
             tracing::info!(tool = %wire_name, %args, "tool call");
+            acting.store(true, Ordering::Relaxed);
             let mut guard = mcp::lock(control);
             let result = match tools::execute(&wire_name, &args, &mut guard) {
                 Ok(data) => json!({"ok": true, "data": data}),
@@ -248,6 +295,21 @@ fn chirp(control: &mcp::SharedControl) -> bool {
             *control = None;
             false
         }
+    }
+}
+
+/// The give-up sound: robotd's low peck tock, or the local synthesized
+/// sigh when the robot cannot play one.
+fn sad_ack(control: &mcp::SharedControl, player: &mut Player) {
+    let played = {
+        let mut guard = mcp::lock(control);
+        quacksat_core::thinking::sad_tock(&mut guard)
+    };
+    if played {
+        return;
+    }
+    if let Err(e) = player.play_pcm(quacksat_core::playback::sad_pcm()) {
+        tracing::debug!(error = %e, "sad ack not played");
     }
 }
 

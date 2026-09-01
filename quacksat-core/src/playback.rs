@@ -209,6 +209,26 @@ pub fn wake_ack_pcm() -> Vec<i16> {
     pcm
 }
 
+/// A short synthesized "sigh" (16 kHz mono): one low falling tone, the
+/// built-in give-up sound where robotd cannot play its peck tock (dev
+/// machines, no sound bank). Deliberately quieter and lower than the
+/// wake ack — bad news should not sound like a greeting.
+pub fn sad_pcm() -> Vec<i16> {
+    let rate = crate::audio::PIPELINE_RATE as f32;
+    let len = (0.3 * rate) as usize;
+    let mut pcm = Vec::with_capacity(len);
+    for i in 0..len {
+        let t = i as f32 / rate;
+        let progress = i as f32 / len as f32;
+        let f = 340.0 - 170.0 * progress;
+        let envelope = (progress * std::f32::consts::PI).sin();
+        let s = (2.0 * std::f32::consts::PI * f * t).sin()
+            + 0.3 * (4.0 * std::f32::consts::PI * f * t).sin();
+        pcm.push((s * envelope * 6000.0) as i16);
+    }
+    pcm
+}
+
 impl Drop for Player {
     fn drop(&mut self) {
         self.stop();

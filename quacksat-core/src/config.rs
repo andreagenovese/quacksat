@@ -33,6 +33,34 @@ pub struct Config {
     pub agent: AgentConfig,
     #[serde(default)]
     pub direct: DirectConfig,
+    #[serde(default)]
+    pub thinking: ThinkingConfig,
+}
+
+/// The thinking cue: body language while the duck waits for its answer.
+/// Timeline: utterance closed → nothing; after `delay_s` a slow head sway
+/// (robot.head) until the reply arrives, then the head recenters; on
+/// timeout or error a low tock replaces the silence.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ThinkingConfig {
+    pub enabled: bool,
+    /// Seconds of waiting before the pose starts — replies faster than
+    /// this deserve no theatrics.
+    pub delay_s: f32,
+    /// Give up waiting for the agent after this long: sad tock, back to
+    /// idle. Applies where the protocol has no timeout of its own.
+    pub timeout_s: f32,
+}
+
+impl Default for ThinkingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            delay_s: 1.0,
+            timeout_s: 30.0,
+        }
+    }
 }
 
 /// Settings for the `direct` backend: the satellite itself speaks the

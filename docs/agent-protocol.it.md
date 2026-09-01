@@ -184,6 +184,11 @@ Informativo; la sessione continua.
 {"type": "error", "message": "stt failed: connection refused"}
 ```
 
+I server dovrebbero inviarne uno ogni volta che un turno non produce
+risposta (trascrizione vuota, STT/LLM falliti): il satellite lo tratta
+come fine dell'attesa — abbandona la posa pensierosa e suona il "tock"
+di resa invece di restare in silenzio fino al suo timeout di risposta.
+
 ### `ping`
 
 ```json

@@ -173,6 +173,32 @@ vocale distribuita. È costato esattamente quanto previsto: mappa nel
 registro più arbitraggio del wake nel bridge, un campo di config sul
 satellite, zero modifiche al protocollo.
 
+## Implementato: il segnale di pensiero (linguaggio del corpo in attesa)
+
+Tra un comando e la risposta possono passare parecchi secondi con
+l'anatra muta e immobile — indistinguibile da un'anatra che non ha
+sentito. Voice PE lo risolve col suo anello LED; l'anatra ha qualcosa
+di meglio: un corpo. La timeline, comune ai tre backend:
+
+- frase chiusa → niente (le risposte rapide non meritano teatro);
+- dopo `[thinking] delay_s` (default 1 s) → la posa pensierosa: una
+  leggera inclinazione della testa con una lenta oscillazione dello
+  yaw, un reinvio strozzato di `robot.head` della stessa forma del
+  pump di `robot.move`;
+- arriva la risposta (`tts.start` / `audio-start`) → la testa torna al
+  centro, l'anatra parla;
+- timeout (`[thinking] timeout_s`, default 30 s) o un errore di
+  protocollo → un "tock" basso invece del silenzio (sintetizzato in
+  locale quando robotd non può suonarlo).
+
+Se l'agente inizia ad agire durante l'attesa (arriva una tool call),
+la posa cede il corpo senza ricentrare — un ricentraggio
+calpesterebbe un movimento della testa comandato da un tool — mentre
+il cronometro continua a correre verso il timeout. Il bridge ora
+segnala trascrizione vuota e turno fallito come eventi `error` di
+protocollo, così il satellite smette subito di aspettare invece di
+scoprire il silenzio al timeout.
+
 ## Fuori scope (deliberato)
 
 - Barge-in (serve l'AEC — l'ADR 0003 lo rimanda).

@@ -295,10 +295,26 @@ class Session:
         finally:
             self.pending_tools.pop(call_id, None)
 
+    async def run_turn_safe(self, pcm):
+        # A failing STT/LLM must reach the satellite as a protocol error,
+        # not vanish inside a fire-and-forget task: the duck is holding
+        # its thinking pose and deserves to be told to stop.
+        try:
+            await self.run_turn(pcm)
+        except Exception as e:  # noqa: BLE001
+            log.exception("turn failed")
+            try:
+                await self.send({"type": "error", "message": f"turn failed: {e}"})
+            except Exception:  # noqa: BLE001 — the socket may be gone too
+                pass
+
     async def run_turn(self, pcm):
         text = await self.services.transcribe(bytes(pcm), self.audio_rate)
         if not text:
             log.info("turn: nothing recognized")
+            # Tell the satellite: it is waiting for an answer and would
+            # otherwise sit in its thinking pose until the reply timeout.
+            await self.send({"type": "error", "message": "nothing recognized"})
             return
         log.info("user: %s", text)
         self.history.append({"role": "user", "content": text})
@@ -387,7 +403,7 @@ class Session:
                 pcm = bytes(self.audio)
                 self.audio.clear()
                 log.info("utterance: %.1fs of audio", len(pcm) / 2 / self.audio_rate)
-                asyncio.create_task(self.run_turn(pcm))
+                self.turn_task = asyncio.create_task(self.run_turn_safe(pcm))
             elif kind == "tool.result":
                 future = self.pending_tools.get(event.get("id", ""))
                 if future and not future.done():

@@ -80,6 +80,14 @@ base_url = "http://localhost:9100/v1"
 api_key = ""
 voice = "it_IT-paola-medium"
 
+# The thinking cue: body language while the duck waits for its answer.
+# After delay_s of waiting the head sways slowly (robot.head) until the
+# reply arrives; at timeout_s the duck gives up with a low tock.
+# [thinking]
+# enabled = true
+# delay_s = 1.0
+# timeout_s = 30.0
+
 # The duck's own MCP server (direct backend): the robot tool catalog
 # served over Streamable HTTP so MCP-capable agents (Arkimede, Claude
 # Desktop, ...) can drive the body directly. The token is MANDATORY.
