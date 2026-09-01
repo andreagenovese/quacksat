@@ -4,6 +4,8 @@
 #   "none"    → bring-up mode: capture + VAD + wake, chirp on wake, no conversation
 #   "wyoming" → Home Assistant Assist satellite (Wyoming protocol)
 #   "agent"   → WebSocket bridge to an STT → LLM → TTS agent
+#   "direct"  → self-contained: the satellite calls OpenAI-dialect
+#               STT/LLM/TTS endpoints itself, no bridge, no server
 backend = "none"
 
 # Path to the robotd JSON-RPC unix socket.
@@ -53,3 +55,22 @@ bind = "0.0.0.0:10700"
 # Name shown in Home Assistant; optional area hint.
 name = "quacksat"
 # area = "Living room"
+
+[direct.llm]
+# Any /chat/completions endpoint (OpenAI, a local ollama, ...).
+base_url = "http://localhost:11434/v1"
+api_key = ""
+model = "qwen3:8b"
+tool_calling = true
+
+[direct.stt]
+# Any /audio/transcriptions endpoint.
+base_url = "http://localhost:9000/v1"
+api_key = ""
+language = "it"
+
+[direct.tts]
+# Any /audio/speech endpoint returning WAV.
+base_url = "http://localhost:9100/v1"
+api_key = ""
+voice = "it_IT-paola-medium"

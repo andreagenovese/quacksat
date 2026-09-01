@@ -4,7 +4,8 @@
 //! docs/agent-protocol.md.
 
 pub mod session;
-pub mod tools;
+
+pub use quacksat_core::tools;
 
 use std::sync::mpsc;
 

@@ -7,3 +7,4 @@ CLAUDE.local*
 /models/
 /bridge/config*.toml
 !/bridge/config.example.toml
+__pycache__/

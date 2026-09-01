@@ -5,6 +5,7 @@ members = [
     "quacksat-core",
     "backends/wyoming",
     "backends/agent",
+    "backends/direct",
 ]
 
 [workspace.package]
@@ -33,6 +34,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-uti
 quacksat-core = { path = "quacksat-core" }
 quacksat-backend-wyoming = { path = "backends/wyoming" }
 quacksat-backend-agent = { path = "backends/agent" }
+quacksat-backend-direct = { path = "backends/direct" }
 
 # Profile tuned for the board (RK3566, 1 GB RAM): small binary.
 [profile.release]

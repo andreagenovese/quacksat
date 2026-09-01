@@ -5,8 +5,8 @@
 
 use std::time::{Duration, Instant};
 
+use crate::robotd::Control;
 use duck_ipc_proto as proto;
-use quacksat_core::robotd::Control;
 use serde_json::{Value, json};
 
 /// Hard caps an LLM can never exceed, whatever it asks for.

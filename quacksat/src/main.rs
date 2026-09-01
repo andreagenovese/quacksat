@@ -28,6 +28,7 @@ fn main() -> anyhow::Result<()> {
         Backend::None => run_bringup(&config, frames),
         Backend::Wyoming => quacksat_backend_wyoming::run(&config, frames),
         Backend::Agent => quacksat_backend_agent::run(&config, frames),
+        Backend::Direct => quacksat_backend_direct::run(&config, frames),
     };
     let _ = capture_child.kill();
     let _ = capture_child.wait();

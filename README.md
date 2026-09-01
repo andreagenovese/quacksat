@@ -33,6 +33,7 @@ quacksat/           the binary: config loading, capture, backend dispatch
 quacksat-core/      mic capture, wake word, VAD, speaker, robot tools → robotd
 backends/wyoming/   Home Assistant Assist satellite backend
 backends/agent/     AI agent backend (WebSocket to a bridge)
+backends/direct/    self-contained backend (OpenAI-dialect STT/LLM/TTS, no bridge)
 bridge/             minimal reference bridge for the agent backend
 systemd/            quacksat.service unit
 scripts/            deploy scripts for the Radxa Zero 3 / the duck

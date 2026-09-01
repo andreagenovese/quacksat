@@ -14,5 +14,6 @@ duck-ipc-proto.workspace = true
 quacksat-core.workspace = true
 quacksat-backend-wyoming.workspace = true
 quacksat-backend-agent.workspace = true
+quacksat-backend-direct.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

@@ -33,7 +33,8 @@ sicuro.
 quacksat/           il binario: caricamento config, cattura, dispatch dei backend
 quacksat-core/      cattura mic, wake word, VAD, speaker, tool robot → robotd
 backends/wyoming/   Home Assistant Assist satellite backend
-backends/agent/     AI agent backend (WebSocket to a bridge)
+backends/agent/     backend agente AI (WebSocket verso un bridge)
+backends/direct/    backend autosufficiente (STT/LLM/TTS in dialetto OpenAI, senza bridge)
 bridge/             minimal reference bridge for the agent backend
 systemd/            quacksat.service unit
 scripts/            deploy scripts for the Radxa Zero 3 / the duck

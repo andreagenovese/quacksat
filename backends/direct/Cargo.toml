@@ -1,0 +1,24 @@
+[package]
+name = "quacksat-backend-direct"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+description = "Self-contained backend: the satellite speaks the OpenAI dialect itself (STT → LLM → TTS over HTTP)"
+
+[dependencies]
+anyhow.workspace = true
+duck-ipc-proto.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+quacksat-core.workspace = true
+# Sync pure-Rust HTTP client (rustls) — fits the no-async house style.
+ureq = "3"
+# WAV parsing for TTS responses (pure Rust).
+hound = "3"
+
+[dev-dependencies]
+tempfile = "3"
+toml.workspace = true

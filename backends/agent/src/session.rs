@@ -18,7 +18,7 @@ use serde_json::{Value, json};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
-use crate::tools;
+use quacksat_core::tools;
 
 pub struct Deps<'a> {
     pub config: &'a Config,

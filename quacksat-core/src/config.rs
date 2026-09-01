@@ -12,6 +12,9 @@ pub enum Backend {
     Wyoming,
     /// WebSocket bridge to an STT → LLM (tool calling) → TTS agent.
     Agent,
+    /// Self-contained: the satellite itself speaks the OpenAI dialect —
+    /// STT → LLM (tool calling) → TTS over HTTP, no bridge.
+    Direct,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,6 +31,88 @@ pub struct Config {
     pub wyoming: WyomingConfig,
     #[serde(default)]
     pub agent: AgentConfig,
+    #[serde(default)]
+    pub direct: DirectConfig,
+}
+
+/// Settings for the `direct` backend: the satellite itself speaks the
+/// OpenAI dialect — no bridge, no home server. All three services are
+/// url+key endpoints, exactly like the reference bridge's.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DirectConfig {
+    pub llm: LlmService,
+    pub stt: SttService,
+    pub tts: TtsService,
+    /// Reopen the mic after each reply (multi-turn without wake word).
+    pub follow_up: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct LlmService {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub system_prompt: String,
+    pub tool_calling: bool,
+    pub max_tool_rounds: u32,
+    pub history_max_messages: usize,
+}
+
+impl Default for LlmService {
+    fn default() -> Self {
+        Self {
+            base_url: "http://localhost:11434/v1".to_string(),
+            api_key: String::new(),
+            model: "qwen3:8b".to_string(),
+            system_prompt: "You are quacksat, a small robot duck. Reply in one or two                             spoken sentences, no formatting. Use your robot tools when                             asked to move, look, quack, or act."
+                .to_string(),
+            tool_calling: true,
+            max_tool_rounds: 5,
+            history_max_messages: 20,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SttService {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub language: String,
+}
+
+impl Default for SttService {
+    fn default() -> Self {
+        Self {
+            base_url: "http://localhost:9000/v1".to_string(),
+            api_key: String::new(),
+            model: String::new(),
+            language: String::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct TtsService {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+    pub voice: String,
+}
+
+impl Default for TtsService {
+    fn default() -> Self {
+        Self {
+            base_url: "http://localhost:9100/v1".to_string(),
+            api_key: String::new(),
+            model: "piper".to_string(),
+            voice: String::new(),
+        }
+    }
 }
 
 /// Settings for the `agent` backend (WebSocket bridge, ADR 0004).
