@@ -5,3 +5,5 @@
 CLAUDE.local*
 /private/
 /models/
+/bridge/config.toml
+/bridge/config.toml
