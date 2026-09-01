@@ -95,6 +95,32 @@ Stato: design concordato, pre-implementazione. Diventerà ADR 0004
    sopra), registrazione MCP robot, eventualmente un gateway `/voice`
    nativo che sostituisce il bridge.
 
+## Futuro: un backend `direct` (anatra autosufficiente)
+
+Un terzo backend, `backend = "direct"`, in cui è il satellite stesso a
+parlare il dialetto OpenAI — STT → LLM (tool calling) → TTS su
+semplice HTTP, tool eseguiti in-process dietro la stessa allowlist,
+niente bridge e niente salto WebSocket. In Rust il costo in risorse
+sulla board è trascurabile (l'orchestrazione non calcola nulla; i
+modelli pesanti restano dietro gli URL).
+
+Perché conta: **un'anatra completamente autosufficiente è ciò che la
+maggior parte delle persone vuole** — inserisci una chiave API (o un
+qualunque endpoint in dialetto OpenAI) e parli, senza server in casa,
+senza container, senza un bridge da gestire. L'architettura attuale lo
+accoglie già per costruzione: la selezione dei backend a runtime
+dell'ADR 0002 più i servizi url+key dell'ADR 0004 fanno sì che
+`backends/direct` si affianchi a `wyoming` e `agent` senza toccare
+altro.
+
+Compromessi noti rispetto al bridge: niente server MCP su un host
+stabile (gli agenti esterni dovrebbero raggiungere l'anatra a
+batteria), la memoria di conversazione muore con la batteria, e nulla
+è condiviso tra più anatre. Il bridge resta la forma giusta per una
+casa con un server sempre acceso; `direct` è la forma giusta per tutti
+gli altri. Non pianificato — registrato qui come terza strada
+designata.
+
 ## Fuori scope (deliberato)
 
 - Barge-in (serve l'AEC — l'ADR 0003 lo rimanda).

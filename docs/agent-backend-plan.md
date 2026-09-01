@@ -89,6 +89,30 @@ details. Italian copy: `agent-backend-plan.it.md`.
    above), robot MCP registration, eventually a native `/voice` gateway
    replacing the bridge.
 
+## Future: a `direct` backend (self-contained duck)
+
+A third backend, `backend = "direct"`, where the satellite itself speaks
+the OpenAI dialect — STT → LLM (tool calling) → TTS over plain HTTP,
+tools executed in-process behind the same allowlist, no bridge and no
+WebSocket hop. In Rust the resource cost on the board is negligible
+(the orchestration computes nothing; the heavy models stay behind the
+URLs).
+
+Why it matters: **a fully self-contained duck is what most people
+want** — plug in an API key (or any OpenAI-dialect endpoint) and talk,
+with no home server, no containers, no bridge to operate. The current
+architecture already accommodates it by construction: ADR 0002's
+runtime backend selection plus ADR 0004's url+key services mean
+`backends/direct` slots in beside `wyoming` and `agent` without
+touching anything else.
+
+Known trade-offs versus the bridge: no MCP server on a stable host
+(external agents would have to reach the battery-powered duck),
+conversation memory dies with the battery, and nothing is shared
+between multiple ducks. The bridge remains the right shape for a home
+with an always-on server; `direct` is the right shape for everyone
+else. Not scheduled — recorded here as the designated third path.
+
 ## Out of scope (deliberate)
 
 - Barge-in (needs AEC — ADR 0003 defers it).
