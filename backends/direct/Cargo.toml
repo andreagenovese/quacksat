@@ -21,4 +21,5 @@ hound = "3"
 
 [dev-dependencies]
 tempfile = "3"
+ureq = "3"
 toml.workspace = true

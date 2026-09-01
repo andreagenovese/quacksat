@@ -46,6 +46,31 @@ pub struct DirectConfig {
     pub tts: TtsService,
     /// Reopen the mic after each reply (multi-turn without wake word).
     pub follow_up: bool,
+    /// The duck's own MCP server: the robot tool catalog served over
+    /// Streamable HTTP so MCP-capable agents can drive the body directly.
+    pub mcp: DirectMcpConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DirectMcpConfig {
+    pub enabled: bool,
+    pub bind: String,
+    pub port: u16,
+    /// Mandatory when enabled: an HTTP server accepting motion commands
+    /// on the robot does not run open.
+    pub token: String,
+}
+
+impl Default for DirectMcpConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            bind: "0.0.0.0".to_string(),
+            port: 8767,
+            token: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -250,6 +275,7 @@ mod tests {
         assert_eq!(config.robotd_socket, "/run/robotd.sock");
         assert_eq!(config.audio.capture_device, "plughw:aic3104,0");
         assert_eq!(config.wake.mode, WakeMode::Energy);
+        assert!(!config.direct.mcp.enabled);
     }
 
     #[test]

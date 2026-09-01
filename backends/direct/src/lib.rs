@@ -8,6 +8,7 @@
 //! docs/agent-backend-plan.md): no MCP server for external agents, the
 //! conversation dies with the process, nothing is shared between ducks.
 
+pub mod mcp;
 mod openai;
 mod speakable;
 
@@ -28,13 +29,31 @@ const NO_SPEECH_FRAMES: u32 = 187;
 const MAX_UTTERANCE_FRAMES: u32 = 469;
 
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
-    let mut control = match Control::connect(&config.robotd_socket) {
-        Ok(control) => Some(control),
-        Err(e) => {
-            tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-            None
-        }
-    };
+    let control: mcp::SharedControl = std::sync::Arc::new(std::sync::Mutex::new(
+        match Control::connect(&config.robotd_socket) {
+            Ok(control) => Some(control),
+            Err(e) => {
+                tracing::warn!(error = %e, "robotd unreachable — running without the robot");
+                None
+            }
+        },
+    ));
+    if config.direct.mcp.enabled {
+        anyhow::ensure!(
+            !config.direct.mcp.token.is_empty(),
+            "[direct.mcp] token is mandatory when the MCP server is enabled \
+             (an HTTP server accepting motion commands never runs open)"
+        );
+        let listener =
+            std::net::TcpListener::bind((config.direct.mcp.bind.as_str(), config.direct.mcp.port))?;
+        tracing::info!(
+            bind = %config.direct.mcp.bind, port = config.direct.mcp.port,
+            "mcp server listening (POST /mcp, bearer auth)"
+        );
+        let mcp_control = control.clone();
+        let token = config.direct.mcp.token.clone();
+        std::thread::spawn(move || mcp::serve(listener, mcp_control, token));
+    }
     let mut player = match &config.audio.playback_program {
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),
@@ -59,7 +78,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             continue;
         }
         tracing::info!("wake");
-        if !chirp(&mut control) {
+        if !chirp(&control) {
             wake_ack(config, &mut player);
         }
 
@@ -67,13 +86,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             let Some(utterance) = record_utterance(&frames, &mut player)? else {
                 break; // silence — back to the wake word
             };
-            match run_turn(
-                config,
-                &utterance,
-                &mut history,
-                &tools_catalog,
-                &mut control,
-            ) {
+            match run_turn(config, &utterance, &mut history, &tools_catalog, &control) {
                 Ok(Some(reply)) => {
                     speak(config, &mut player, &reply);
                     while frames.try_recv().is_ok() {}
@@ -133,7 +146,7 @@ fn run_turn(
     utterance: &[i16],
     history: &mut Vec<Value>,
     tools_catalog: &Value,
-    control: &mut Option<Control>,
+    control: &mcp::SharedControl,
 ) -> anyhow::Result<Option<String>> {
     let wav = openai::pcm_to_wav(utterance, quacksat_core::audio::PIPELINE_RATE);
     let text = openai::transcribe(&config.direct.stt, wav)?;
@@ -168,7 +181,8 @@ fn run_turn(
                 .and_then(|raw| serde_json::from_str(raw).ok())
                 .unwrap_or_else(|| json!({}));
             tracing::info!(tool = %wire_name, %args, "tool call");
-            let result = match tools::execute(&wire_name, &args, control) {
+            let mut guard = mcp::lock(control);
+            let result = match tools::execute(&wire_name, &args, &mut guard) {
                 Ok(data) => json!({"ok": true, "data": data}),
                 Err(error) => {
                     tracing::info!(%error, "tool refused");
@@ -215,7 +229,9 @@ fn speak(config: &Config, player: &mut Player, text: &str) {
     tracing::info!("tts played");
 }
 
-fn chirp(control: &mut Option<Control>) -> bool {
+fn chirp(control: &mcp::SharedControl) -> bool {
+    let mut guard = mcp::lock(control);
+    let control = &mut *guard;
     let Some(c) = control else { return false };
     let call = proto::Call::RobotSound(proto::SoundParams {
         tag: proto::SoundTag::Chirp,

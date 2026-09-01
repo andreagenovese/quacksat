@@ -74,3 +74,11 @@ language = "it"
 base_url = "http://localhost:9100/v1"
 api_key = ""
 voice = "it_IT-paola-medium"
+
+# The duck's own MCP server (direct backend): the robot tool catalog
+# served over Streamable HTTP so MCP-capable agents (Arkimede, Claude
+# Desktop, ...) can drive the body directly. The token is MANDATORY.
+# [direct.mcp]
+# enabled = true
+# port = 8767
+# token = "change-me"
