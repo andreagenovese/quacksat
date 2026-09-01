@@ -22,7 +22,8 @@ fn loud_frame() -> Vec<i16> {
 
 fn fake_aplay(dir: &std::path::Path) -> String {
     let script = dir.join("fake-aplay");
-    std::fs::write(&script, "#!/bin/sh\nexec cat > /dev/null\n").unwrap();
+    // Exits immediately (see the agent test for why).
+    std::fs::write(&script, "#!/bin/sh\nexit 0\n").unwrap();
     use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(&script).unwrap().permissions();
     perms.set_mode(0o755);
@@ -91,8 +92,9 @@ fn full_conversation_flow() {
         }
 
         // 3. Wake → detection, run-pipeline, audio-start, chunks. The two
-        // pre-roll frames must be flushed ahead of the triggering frame, so
-        // exactly five chunks arrive.
+        // pre-roll frames plus the triggering frame are flushed in the wake
+        // iteration itself; later frames may be skipped while the local
+        // wake ack is still sounding, so only assert the guaranteed three.
         let detection = next();
         assert_eq!(detection.event_type, "detection");
         let pipeline = next();
@@ -102,7 +104,7 @@ fn full_conversation_flow() {
         let start = next();
         assert_eq!(start.event_type, "audio-start");
         assert_eq!(start.data["rate"], 16_000);
-        for _ in 0..5 {
+        for _ in 0..3 {
             let chunk = next();
             assert_eq!(chunk.event_type, "audio-chunk");
             assert_eq!(chunk.payload.len(), FRAME_SAMPLES * 2);

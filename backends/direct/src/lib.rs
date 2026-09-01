@@ -64,7 +64,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
         }
 
         loop {
-            let Some(utterance) = record_utterance(&frames)? else {
+            let Some(utterance) = record_utterance(&frames, &mut player)? else {
                 break; // silence — back to the wake word
             };
             match run_turn(
@@ -94,7 +94,10 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
 
 /// Record one utterance from the mic: VAD-segmented, with the same
 /// no-speech and max-length guards as the agent backend.
-fn record_utterance(frames: &mpsc::Receiver<Vec<i16>>) -> anyhow::Result<Option<Vec<i16>>> {
+fn record_utterance(
+    frames: &mpsc::Receiver<Vec<i16>>,
+    player: &mut Player,
+) -> anyhow::Result<Option<Vec<i16>>> {
     let mut vad = Vad::with_hangover(UTTERANCE_HANGOVER_FRAMES);
     let mut audio: Vec<i16> = Vec::new();
     let mut speech_seen = false;
@@ -104,6 +107,11 @@ fn record_utterance(frames: &mpsc::Receiver<Vec<i16>>) -> anyhow::Result<Option<
         let Ok(frame) = frames.recv() else {
             anyhow::bail!("capture channel closed");
         };
+        // The wake ack is still sounding: the mic hears it (no AEC) and
+        // the VAD would take it for speech and close the turn early.
+        if player.is_playing() {
+            continue;
+        }
         audio.extend_from_slice(&frame);
         count += 1;
         match vad.feed(&frame) {

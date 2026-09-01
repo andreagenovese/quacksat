@@ -268,7 +268,12 @@ fn handle_frame(
                 preroll.push_back(frame.to_vec());
             }
         }
-        Mode::Streaming => write_chunk(writer, frame)?,
+        Mode::Streaming => {
+            // Skip frames while the local wake ack rings (no AEC).
+            if !deps.player.is_playing() {
+                write_chunk(writer, frame)?;
+            }
+        }
     }
     Ok(())
 }

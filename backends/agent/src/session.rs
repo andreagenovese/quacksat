@@ -229,6 +229,11 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                     }
                 }
                 Mic::Streaming => {
+                    // The local wake ack is still sounding: the mic hears
+                    // it (no AEC) and the VAD would take it for speech.
+                    if deps.player.is_playing() {
+                        continue;
+                    }
                     send_audio(&mut ws, &frame)?;
                     streamed_frames += 1;
                     match vad.feed(&frame) {

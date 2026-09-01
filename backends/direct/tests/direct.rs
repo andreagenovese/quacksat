@@ -21,7 +21,9 @@ fn quiet_frame() -> Vec<i16> {
 
 fn fake_aplay(dir: &std::path::Path) -> String {
     let script = dir.join("fake-aplay");
-    std::fs::write(&script, "#!/bin/sh\nexec cat > /dev/null\n").unwrap();
+    // Exits immediately: tests feed frames in bursts, and a lingering
+    // ack player would gate them all away in one drain.
+    std::fs::write(&script, "#!/bin/sh\nexit 0\n").unwrap();
     use std::os::unix::fs::PermissionsExt;
     let mut perms = std::fs::metadata(&script).unwrap().permissions();
     perms.set_mode(0o755);
