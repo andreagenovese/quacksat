@@ -239,9 +239,11 @@ class Session:
         self.pending_tools = {}
 
     def openai_tools(self):
+        # Dots become underscores (many providers reject dots in function
+        # names); run_turn maps them back before calling the satellite.
         return [
             {"type": "function", "function": {
-                "name": t["name"],
+                "name": t["name"].replace(".", "_"),
                 "description": t.get("description", ""),
                 "parameters": t.get("parameters", {"type": "object", "properties": {}}),
             }}
@@ -284,6 +286,8 @@ class Session:
             )
             for call in tool_calls:
                 name = call["function"]["name"]
+                if "." not in name:
+                    name = name.replace("_", ".", 1)
                 try:
                     args = json.loads(call["function"].get("arguments") or "{}")
                 except json.JSONDecodeError:
