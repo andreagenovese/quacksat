@@ -42,5 +42,13 @@ the bridge exposes the satellite's tool catalog as an MCP server at
 `http://<host>:8766/mcp` (Streamable HTTP). Register it in your agent
 platform (e.g. Arkimede's MCP servers) and the agent calls the robot
 from inside its own loop — tool names use underscores (`robot_move`);
-results carry the satellite's `tool.result` JSON. One satellite at a
-time; with none connected, calls answer `no satellite connected`.
+results carry the satellite's `tool.result` JSON. With no satellite
+connected, calls answer `no satellite connected`. Like the WebSocket,
+the endpoint is meant for a trusted LAN (no auth of its own).
+
+Several ducks can share one bridge: give each a unique `[agent] name`
+in its satellite config. Wakes landing within `[behavior] wake_window`
+(default 250 ms) compete and the highest score wins — the losers get
+`listen.stop`. With more than one duck connected, every MCP tool gains
+a mandatory `duck` argument (an enum of the connected names); a call
+without it is refused with the list.

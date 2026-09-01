@@ -56,7 +56,9 @@ robot è in attesa — dicembre 2026.
 - Wake word locale (modelli openWakeWord sul runtime pure-Rust tract;
   frasi custom supportate — vedi `docs/custom-wake-word.md`),
   segmentazione dei turni via VAD, riproduzione half-duplex, client
-  robotd sul modello di padd.
+  robotd sul modello di padd, e un segnale di pensiero: una lenta
+  oscillazione della testa mentre la risposta viene calcolata, un
+  "tock" basso di resa su timeout o errore (config `[thinking]`).
 - `wyoming`: si registra in Home Assistant ed esegue il giro Assist
   completo (wake → STT → intent → TTS).
 - `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.md`)

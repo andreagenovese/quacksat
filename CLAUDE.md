@@ -39,19 +39,19 @@ running on the Pollen Robotics Microduck".
 ```
 quacksat/
 ├── CLAUDE.md
-├── LICENSE (Apache-2.0) · NOTICE · README.md (con disclaimer non-affiliazione)
+├── LICENSE (Apache-2.0) · NOTICE · README.md (with the non-affiliation disclaimer)
 ├── docs/
-│   ├── study/      ← i documenti di studio già prodotti (vedi sotto)
-│   └── adr/        ← 0001-repo-separato, 0002-backend-intercambiabili, ...
+│   ├── study/      ← the study documents (see below)
+│   └── adr/        ← 0001-separate-repo, 0002-interchangeable-backends, ...
 ├── quacksat/       ← the binary: config, capture, backend dispatch
-├── quacksat-core/  ← mic, wake word, VAD, speaker, tool robot → robotd
+├── quacksat-core/  ← mic, wake word, VAD, speaker, robot tools → robotd
 ├── backends/wyoming/ · backends/agent/ · backends/direct/
-├── bridge/         ← riferimento lato server per la strada B
+├── bridge/         ← server-side reference for path B
 ├── systemd/        ← quacksat.service
-└── scripts/        ← deploy su Radxa Zero 3 e sull'anatra
+└── scripts/        ← deploy to the Radxa Zero 3 / the duck
 ```
 
-Study documents to put in `docs/study/`:
+Study documents in `docs/study/` (each with an `.it` copy):
 `microduck-architecture.md`, `microduck-flowchart.mermaid`,
 `robotd-analysis.md`, `robotd-dataflow.mermaid`,
 `quacksat-ha-vs-agent.md`, `quacksat-flows-comparison.mermaid`.
@@ -83,9 +83,11 @@ Study documents to put in `docs/study/`:
 
 The original build plan (scaffold → microduck study → ADR 0003 → core →
 wyoming → agent/bridge) is complete, plus a third `direct` backend,
-the duck-side MCP server, and multi-duck support in the bridge (wake
-arbitration by score, per-duck MCP tool addressing). Everything is
-validated live on a dev Mac against real services; see README → Status.
+the duck-side MCP server, multi-duck support in the bridge (wake
+arbitration by score, per-duck MCP tool addressing), and the thinking
+cue (head sway while waiting, sad tock on timeout — `[thinking]`).
+Everything is validated live on a dev Mac against real services; see
+README → Status.
 
 Next:
 

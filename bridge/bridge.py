@@ -353,6 +353,10 @@ class Session:
             log.info("assistant: %s", reply)
             self.history.append({"role": "assistant", "content": reply})
             await self.speak(reply)
+        else:
+            # The satellite is holding its thinking pose: an empty reply
+            # must end the wait, not leave it to the reply timeout.
+            await self.send({"type": "error", "message": "the agent had nothing to say"})
         limit = self.config["behavior"]["history_max_messages"]
         self.history = self.history[-limit:]
         if self.config["behavior"]["follow_up"]:
@@ -361,6 +365,8 @@ class Session:
     async def speak(self, text):
         text = speakable(text)
         if not text:
+            # Nothing sayable survived the sanitizer: same as no reply.
+            await self.send({"type": "error", "message": "the agent had nothing to say"})
             return
         try:
             pcm, rate, channels = await self.services.synthesize(text)

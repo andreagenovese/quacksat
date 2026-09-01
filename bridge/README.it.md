@@ -44,6 +44,15 @@ bridge espone il catalogo tool del satellite come server MCP su
 `http://<host>:8766/mcp` (Streamable HTTP). Registralo nella tua
 piattaforma agente (es. i server MCP di Arkimede) e l'agente chiama il
 robot dal proprio loop — i nomi tool usano underscore (`robot_move`);
-i risultati portano il JSON del `tool.result` del satellite. Un
-satellite alla volta; senza satellite connesso le chiamate rispondono
-`no satellite connected`.
+i risultati portano il JSON del `tool.result` del satellite. Senza
+satellite connesso le chiamate rispondono `no satellite connected`.
+Come il WebSocket, l'endpoint è pensato per una LAN fidata (nessuna
+auth propria).
+
+Più anatre possono condividere un bridge: dai a ciascuna un
+`[agent] name` unico nella config del satellite. I wake che arrivano
+entro `[behavior] wake_window` (default 250 ms) competono e vince lo
+score più alto — le perdenti ricevono `listen.stop`. Con più di
+un'anatra connessa, ogni tool MCP guadagna un argomento `duck`
+obbligatorio (un enum dei nomi connessi); una chiamata senza viene
+rifiutata con la lista.

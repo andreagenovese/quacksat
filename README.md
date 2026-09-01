@@ -54,7 +54,9 @@ is pending — December 2026.
 
 - Local wake word (openWakeWord models on the pure-Rust tract runtime;
   custom phrases supported — see `docs/custom-wake-word.md`), VAD turn
-  segmentation, half-duplex playback, robotd client on the padd model.
+  segmentation, half-duplex playback, robotd client on the padd model,
+  and a thinking cue: a slow head sway while the answer is computed,
+  a low give-up tock on timeout or error (`[thinking]` config).
 - `wyoming`: registers in Home Assistant and runs the full Assist
   round-trip (wake → STT → intent → TTS).
 - `agent`: the neutral WebSocket protocol (`docs/agent-protocol.md`)

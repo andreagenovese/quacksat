@@ -2,6 +2,15 @@
 
 Brief da incollare come primo messaggio (o da salvare come `CLAUDE.md` nel repo).
 
+## Politica della lingua
+
+L'inglese è la lingua primaria per tutto (codice, commenti, docs, commit,
+conversazione). Ogni documento in docs/ (e CLAUDE.md/README.md) è tenuto in
+coppia: il file inglese è canonico; una copia italiana con lo stesso basename
+più un suffisso `.it` prima dell'estensione esiste per l'utente. Quando si
+crea o si modifica un documento, aggiornare entrambe le copie, prima
+l'inglese.
+
 ## Cos'è
 
 **quacksat**: satellite vocale mobile per Home Assistant e per agenti AI,
@@ -34,7 +43,7 @@ quacksat/
 ├── LICENSE (Apache-2.0) · NOTICE · README.md (con disclaimer non-affiliazione)
 ├── docs/
 │   ├── study/      ← i documenti di studio già prodotti (vedi sotto)
-│   └── adr/        ← 0001-repo-separato, 0002-backend-intercambiabili, ...
+│   └── adr/        ← 0001-separate-repo, 0002-interchangeable-backends, ...
 ├── quacksat/       ← il binario: config, cattura, dispatch dei backend
 ├── quacksat-core/  ← mic, wake word, VAD, speaker, tool robot → robotd
 ├── backends/wyoming/ · backends/agent/ · backends/direct/
@@ -43,10 +52,10 @@ quacksat/
 └── scripts/        ← deploy su Radxa Zero 3 e sull'anatra
 ```
 
-Documenti di studio da mettere in `docs/study/`:
-`microduck-architettura.md`, `microduck-flowchart.mermaid`,
-`robotd-analisi.md`, `robotd-dataflow.mermaid`,
-`quacksat-ha-vs-agente.md`, `quacksat-flussi-confronto.mermaid`.
+Documenti di studio in `docs/study/` (ciascuno con copia `.it`):
+`microduck-architecture.md`, `microduck-flowchart.mermaid`,
+`robotd-analysis.md`, `robotd-dataflow.mermaid`,
+`quacksat-ha-vs-agent.md`, `quacksat-flows-comparison.mermaid`.
 
 ## Vincoli tecnici noti (da robotd-design.md e architecture.md)
 
@@ -75,10 +84,11 @@ Documenti di studio da mettere in `docs/study/`:
 
 Il piano originale (scaffold → studio di microduck → ADR 0003 → core →
 wyoming → agent/bridge) è completato, più un terzo backend `direct`,
-il server MCP lato anatra e il supporto multi-anatra nel bridge
+il server MCP lato anatra, il supporto multi-anatra nel bridge
 (arbitraggio del wake per score, indirizzamento per-anatra dei tool
-MCP). Tutto validato dal vivo su un Mac di sviluppo contro servizi
-reali; vedi README → Stato.
+MCP) e il segnale di pensiero (oscillazione della testa in attesa,
+tock di resa a timeout — `[thinking]`). Tutto validato dal vivo su un
+Mac di sviluppo contro servizi reali; vedi README → Stato.
 
 Prossimi passi:
 
