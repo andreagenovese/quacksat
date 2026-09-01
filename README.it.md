@@ -11,7 +11,7 @@ Microduck di Pollen Robotics.
 
 quacksat trasforma il Microduck in un assistente vocale itinerante. Cattura
 l'audio a bordo dell'anatra, rileva una wake word e affida la conversazione
-a uno di due backend intercambiabili selezionati in `/etc/robot/quacksat.toml`:
+a uno di tre backend intercambiabili selezionati in `/etc/robot/quacksat.toml`:
 
 - **`wyoming`** — l'anatra diventa un satellite [Home Assistant Assist](https://www.home-assistant.io/voice_control/)
   tramite il protocollo Wyoming: STT, gestione degli intenti e TTS girano
@@ -20,6 +20,11 @@ a uno di due backend intercambiabili selezionati in `/etc/robot/quacksat.toml`:
   bridge che esegue STT → LLM (con tool calling) → TTS. Il protocollo è
   neutrale rispetto all'agente; un bridge di riferimento minimale vive in
   [`bridge/`](bridge/), quindi puoi portare il tuo agente.
+- **`direct`** — autosufficiente: è l'anatra stessa a chiamare tre
+  endpoint in dialetto OpenAI (chat completions, transcriptions,
+  speech) — una chiave cloud o un server locale, senza bridge e senza
+  server in casa. Può anche servire il proprio endpoint MCP così gli
+  agenti MCP-capable guidano il robot direttamente.
 
 In entrambe le modalità quacksat è un client non privilegiato di `robotd`,
 il demone di sistema del Microduck: invia intenti e RPC (move, head, skill)
@@ -44,9 +49,23 @@ docs/adr/           architecture decision records
 
 ## Stato
 
-Scaffold iniziale. L'ordine di sviluppo è: prima core + wyoming (validare
-l'hardware contro una catena HA collaudata), poi agent + bridge di
-riferimento.
+Funzionante, validato su un Mac di sviluppo contro servizi reali (un
+Home Assistant, una piattaforma agente, LLM locali). La validazione sul
+robot è in attesa — dicembre 2026.
+
+- Wake word locale (modelli openWakeWord sul runtime pure-Rust tract;
+  frasi custom supportate — vedi `docs/custom-wake-word.md`),
+  segmentazione dei turni via VAD, riproduzione half-duplex, client
+  robotd sul modello di padd.
+- `wyoming`: si registra in Home Assistant ed esegue il giro Assist
+  completo (wake → STT → intent → TTS).
+- `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.md`)
+  più il bridge di riferimento in `bridge/` — STT/LLM/TTS come endpoint
+  url+key in dialetto OpenAI, tool robot dietro una allowlist
+  esaustiva, e un server MCP che li espone agli agenti MCP-native.
+- `direct`: il satellite autosufficiente — chiama da sé i tre endpoint
+  in dialetto OpenAI, senza bridge, e può servire il proprio endpoint
+  MCP così gli agenti guidano il robot direttamente.
 
 ## Compilazione
 

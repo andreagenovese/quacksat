@@ -52,6 +52,10 @@ training impacchettano esattamente questo notebook.)
 - Se la tua pronuncia differisce dalle voci sintetiche (accento), di
   solito aiuta riallenare con grafie aggiuntive della frase (es.
   `"hey daffy"`, `"ei daffy"`) nella lista dei target.
+- Se scatta anche una frase *simile* (in pratica: un primo modello
+  "hey Daffy" partiva anche con "hey Jarvis"), riallena aggiungendo le
+  frasi confondibili ai **negativi avversari** custom — quella
+  separazione non si sistema con la sola soglia.
 - Verifica rapida senza hardware, su macOS:
 
   ```sh

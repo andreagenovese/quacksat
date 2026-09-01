@@ -1,7 +1,8 @@
 # Piano strada B: backend agent, bridge e protocollo (task 6)
 
-Stato: design concordato, pre-implementazione. Diventerà ADR 0004
-(protocollo) più codice. Sostituisce lo schizzo in
+Stato: **implementato** (2026-09-01) — conservato come registro di
+design della strada B; il contratto wire vive in ADR 0004 +
+`docs/agent-protocol.md`. Sostituisce lo schizzo in
 `quacksat-ha-vs-agent.md` per i dettagli della strada B. Copia inglese
 (canonica): `agent-backend-plan.md`.
 
@@ -54,7 +55,7 @@ Stato: design concordato, pre-implementazione. Diventerà ADR 0004
 4. **Il server MCP è il cuore dei tool del bridge, non un'aggiunta.**
    Un unico server MCP (HTTP/SSE) espone i tool dichiarati dal
    satellite; ogni consumatore ci passa:
-   - **Profilo 1 — agente MCP-native** (l'Arkimede di oggi): l'agente
+   - **Profilo 1 — agente MCP-native** (l'[Arkimede](https://github.com/andreagenovese/yesSir) di oggi): l'agente
      registra il server MCP del bridge e chiama i tool robot dentro il
      proprio loop. Nessuna modifica ad Arkimede — il suo shim OpenAI
      non vede mai le tool call (prendono la porta laterale MCP).
@@ -77,7 +78,7 @@ Stato: design concordato, pre-implementazione. Diventerà ADR 0004
    di Arkimede per quel lavoro. Zero codice specifico per Arkimede nel
    bridge.
 
-## Ordine dei lavori
+## Ordine dei lavori (tutto consegnato)
 
 1. ADR 0004 + documento di spec del protocollo (bilingue).
 2. `backends/agent` (Rust): client tungstenite + rustls (sincrono,
@@ -118,7 +119,7 @@ con la batteria, e nulla è condiviso tra più anatre. Il bridge resta
 la forma giusta per una casa con un server sempre acceso; `direct` è
 la forma giusta per tutti gli altri.
 
-**Evoluzione designata: un server MCP sull'anatra stessa.** Il backend
+**Implementato: un server MCP sull'anatra stessa.** Il backend
 direct può esporre il catalogo dei tool robot come proprio server MCP
 (Streamable HTTP stateless, config `[direct.mcp]`, spento di default) —
 stessa allowlist e stessi clamp, serviti dal robot. Questo completa la

@@ -1,9 +1,9 @@
 # quacksat agent protocol — specifica di wire v1
 
-Stato: bozza che implementa l'ADR 0004. Questa è la traduzione
+Stato: v1, implementato da `backends/agent`, `backends/direct` e dal bridge di riferimento in `bridge/`. Questa è la traduzione
 italiana; la copia inglese `agent-protocol.md` è quella canonica.
 Destinatari: implementatori di bridge/agenti (il bridge di riferimento
-in `bridge/`, Arkimede, o qualunque altra cosa).
+in `bridge/`, [Arkimede](https://github.com/andreagenovese/yesSir), o qualunque altra cosa).
 
 ## Trasporto
 

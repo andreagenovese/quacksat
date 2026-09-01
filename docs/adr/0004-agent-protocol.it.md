@@ -4,7 +4,7 @@
 - Data: 2026-08-31
 - Input: ADR 0002 (backend intercambiabili), ADR 0003 (audio
   half-duplex), `docs/agent-backend-plan.md`, ricognizione della
-  piattaforma Arkimede
+  piattaforma [Arkimede](https://github.com/andreagenovese/yesSir)
 
 ## Contesto
 

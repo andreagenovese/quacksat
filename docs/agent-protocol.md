@@ -1,8 +1,8 @@
 # quacksat agent protocol — wire specification v1
 
-Status: draft implementing ADR 0004. Italian copy:
-`agent-protocol.it.md`. Audience: implementers of bridges/agents (the
-reference bridge in `bridge/`, Arkimede, or anything else).
+Status: v1, implemented by `backends/agent`, `backends/direct`, and the
+reference bridge in `bridge/`. Italian copy: `agent-protocol.it.md`.
+Audience: implementers of bridges/agents ([Arkimede](https://github.com/andreagenovese/yesSir) or anything else).
 
 ## Transport
 

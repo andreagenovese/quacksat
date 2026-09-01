@@ -8,7 +8,7 @@
 L'anatra deve servire due configurazioni: una casa con Home Assistant che
 vuole un satellite Assist, e una configurazione con agente AI in cui le
 conversazioni sono gestite da un LLM esterno con tool calling (per es.
-Arkimede). Costruire solo una delle due avrebbe vincolato il progetto ad HA
+[Arkimede](https://github.com/andreagenovese/yesSir)). Costruire solo una delle due avrebbe vincolato il progetto ad HA
 oppure costretto ogni utente a gestire uno stack agente custom.
 
 ## Decisione

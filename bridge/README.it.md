@@ -31,10 +31,10 @@ volta per turno — l'intero giro del protocollo senza dipendenze.
 - **Provider generico con tool calling** (`tool_calling = true`): il
   loop lo fa il bridge; il catalogo tool del satellite è dichiarato
   come tool OpenAI e i `tool_calls` sono inoltrati come `tool.call`.
-- **Arkimede**: LLM/STT/TTS tutti su
+- **[Arkimede](https://github.com/andreagenovese/yesSir)**: LLM/STT/TTS tutti su
   `http://<server>:3000/api/openai/v1` con chiave `ak_`; imposta
   `tool_calling = false` (il suo shim tiene i tool interni — i tool
-  robot arriveranno via MCP, fase 2).
+  robot arrivano dal server MCP qui sotto).
 - **LLM nudo**: funziona comunque; solo voce.
 
 ## Server MCP (tool robot per agenti MCP-native)

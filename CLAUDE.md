@@ -31,7 +31,7 @@ running on the Pollen Robotics Microduck".
    groups), it only sends intents/RPC, it never touches the bus. If it goes
    silent, the deadman protects the robot.
 4. Neutral `agent` protocol (audio streaming + events + tool call/result); the
-   bridge in the repo is a minimal reference; the Arkimede integration lives
+   bridge in the repo is a minimal reference; the [Arkimede](https://github.com/andreagenovese/yesSir) integration lives
    in Arkimede.
 
 ## Structure
@@ -45,7 +45,7 @@ quacksat/
 │   └── adr/        ← 0001-repo-separato, 0002-backend-intercambiabili, ...
 ├── quacksat/       ← the binary: config, capture, backend dispatch
 ├── quacksat-core/  ← mic, wake word, VAD, speaker, tool robot → robotd
-├── backends/wyoming/ · backends/agent/
+├── backends/wyoming/ · backends/agent/ · backends/direct/
 ├── bridge/         ← riferimento lato server per la strada B
 ├── systemd/        ← quacksat.service
 └── scripts/        ← deploy su Radxa Zero 3 e sull'anatra
@@ -79,19 +79,23 @@ Study documents to put in `docs/study/`:
 - Remote dev: `ssh -L /tmp/robotd.sock:/run/robotd.sock` → quacksat runs on
   the Mac against the real robot. `robotd --fake` to work without hardware.
 
-## First tasks
+## Status (2026-09-01) and next steps
 
-1. Repo scaffold (Cargo workspace, LICENSE, NOTICE, README, CLAUDE.md,
-   docs/study, ADR 0001 and 0002).
-2. Clone `pollen-robotics/microduck` alongside and read: `sound.rs`,
-   `pet-detect/`, `padd/`, `duck-ipc-proto/`, `docs/design/updater-design.md`,
-   `docs/design/restart-order.md`, `mediad/` (audio status).
-3. Untangle the audio knot: how to access mic and speaker without breaking
-   pet-detect and sound.rs. Write ADR 0003 with the answer.
-4. `quacksat-core`: robotd client (modeled on padd) + audio capture +
-   wake word (microWakeWord/openWakeWord) + VAD, testable with `robotd --fake`.
-5. `backends/wyoming`: registration as an HA satellite, streaming, TTS playback.
-6. Only afterwards: `backends/agent` + `bridge/`.
+The original build plan (scaffold → microduck study → ADR 0003 → core →
+wyoming → agent/bridge) is complete, plus a third `direct` backend and
+the duck-side MCP server. Everything is validated live on a dev Mac
+against real services; see README → Status.
+
+Next:
+
+1. **December 2026**: the physical duck arrives — on-hardware
+   validation (aic3104 capture/playback per ADR 0003, real chirps,
+   cross-build + deploy via `scripts/`, wake-word CPU budget on the
+   RK3566).
+2. Optional, in the Arkimede repo: phase 2 (native `/voice` gateway,
+   tool passthrough on the OpenAI shim) — briefs live there.
+3. Later, per `docs/todo-map.md`: the mapping/localization track
+   (get_frame via a mediad upstream PR, then `where_am_i`/`go_to`).
 
 ## Private context
 

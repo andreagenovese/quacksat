@@ -1,7 +1,8 @@
 # Path B plan: agent backend, bridge, and protocol (task 6)
 
-Status: agreed design, pre-implementation. Will become ADR 0004 (protocol)
-plus code. Supersedes the sketch in `quacksat-ha-vs-agent.md` for path B
+Status: **implemented** (2026-09-01) — kept as the design record for
+path B; the wire contract lives in ADR 0004 + `docs/agent-protocol.md`.
+Supersedes the sketch in `quacksat-ha-vs-agent.md` for path B
 details. Italian copy: `agent-backend-plan.it.md`.
 
 ## Shape
@@ -49,7 +50,7 @@ details. Italian copy: `agent-backend-plan.it.md`.
 4. **The MCP server is the bridge's tool core, not an add-on.** One MCP
    server (HTTP/SSE) exposes the satellite's declared tools; every
    consumer goes through it:
-   - **Profile 1 — MCP-native agent** (Arkimede today): the agent
+   - **Profile 1 — MCP-native agent** ([Arkimede](https://github.com/andreagenovese/yesSir) today): the agent
      registers the bridge's MCP server and calls robot tools inside its
      own loop. No Arkimede changes needed — its OpenAI shim never sees
      the tool calls (they take the MCP side door).
@@ -71,7 +72,7 @@ details. Italian copy: `agent-backend-plan.it.md`.
    see `docs/VOICE_AUDIO_SERVICES.md` in the Arkimede repo for that
    work. Zero Arkimede-specific code in the bridge.
 
-## Order of work
+## Order of work (all delivered)
 
 1. ADR 0004 + protocol spec doc (bilingual).
 2. `backends/agent` (Rust): tungstenite + rustls client (sync, std
@@ -111,7 +112,7 @@ battery, and nothing is shared between multiple ducks. The bridge
 remains the right shape for a home with an always-on server; `direct`
 is the right shape for everyone else.
 
-**Designated evolution: an MCP server on the duck itself.** The direct
+**Implemented: an MCP server on the duck itself.** The direct
 backend can expose the robot tool catalog as its own MCP server
 (stateless Streamable HTTP, `[direct.mcp]` config, off by default) —
 the same allowlist and clamps, served from the robot. This completes

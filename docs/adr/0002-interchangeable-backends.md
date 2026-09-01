@@ -7,7 +7,7 @@
 
 The duck should serve two setups: a Home Assistant household that wants an
 Assist satellite, and an AI-agent setup where conversations are handled by
-an external LLM with tool calling (e.g. Arkimede). Building only one of
+an external LLM with tool calling (e.g. [Arkimede](https://github.com/andreagenovese/yesSir)). Building only one of
 these would either lock the project into HA or force every user to run a
 custom agent stack.
 

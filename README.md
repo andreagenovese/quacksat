@@ -11,7 +11,7 @@ Pollen Robotics Microduck.
 
 quacksat turns the Microduck into a roaming voice assistant. It captures
 audio on the duck, detects a wake word, and hands the conversation to one of
-two interchangeable backends selected in `/etc/robot/quacksat.toml`:
+three interchangeable backends selected in `/etc/robot/quacksat.toml`:
 
 - **`wyoming`** — the duck becomes a [Home Assistant Assist](https://www.home-assistant.io/voice_control/)
   satellite over the Wyoming protocol: STT, intent handling, and TTS run in
@@ -20,6 +20,11 @@ two interchangeable backends selected in `/etc/robot/quacksat.toml`:
   that runs STT → LLM (with tool calling) → TTS. The protocol is
   agent-neutral; a minimal reference bridge lives in [`bridge/`](bridge/),
   so you can bring your own agent.
+- **`direct`** — self-contained: the duck itself calls three
+  OpenAI-dialect endpoints (chat completions, transcriptions, speech) —
+  any cloud key or local server, no bridge, no home server. It can also
+  serve its own MCP endpoint so MCP-capable agents drive the robot
+  directly.
 
 In both modes quacksat is an unprivileged client of `robotd`, the Microduck
 system daemon: it sends intents and RPCs (move, head, skills) over the
@@ -43,8 +48,22 @@ docs/adr/           architecture decision records
 
 ## Status
 
-Early scaffold. The build order is: core + wyoming first (validate the
-hardware against a proven HA chain), then agent + reference bridge.
+Working, validated on a development Mac against real services (a Home
+Assistant install, an agent platform, local LLMs). On-robot validation
+is pending — December 2026.
+
+- Local wake word (openWakeWord models on the pure-Rust tract runtime;
+  custom phrases supported — see `docs/custom-wake-word.md`), VAD turn
+  segmentation, half-duplex playback, robotd client on the padd model.
+- `wyoming`: registers in Home Assistant and runs the full Assist
+  round-trip (wake → STT → intent → TTS).
+- `agent`: the neutral WebSocket protocol (`docs/agent-protocol.md`)
+  plus the reference bridge in `bridge/` — STT/LLM/TTS as OpenAI-dialect
+  url+key endpoints, robot tools behind an exhaustive allowlist, and an
+  MCP server exposing them to MCP-native agents.
+- `direct`: the self-contained satellite — it calls the three
+  OpenAI-dialect endpoints itself, no bridge, and can serve its own MCP
+  endpoint so agents drive the robot directly.
 
 ## Building
 

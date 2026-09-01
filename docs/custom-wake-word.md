@@ -49,6 +49,10 @@ wrap this exact notebook.)
 - If your pronunciation differs from the synthetic voices (accent), a
   retrain with extra phrase spellings (e.g. `"hey daffy"`, `"ei daffy"`)
   in the target list usually helps.
+- If a *similar* phrase also triggers (in practice: a first "hey Daffy"
+  model fired on "hey Jarvis" too), retrain adding the confusable
+  phrases to the custom **adversarial negatives** — that separation is
+  not fixable with the threshold alone.
 - Quick sanity check without hardware, on macOS:
 
   ```sh
