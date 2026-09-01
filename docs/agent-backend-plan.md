@@ -106,12 +106,24 @@ runtime backend selection plus ADR 0004's url+key services mean
 `backends/direct` slots in beside `wyoming` and `agent` without
 touching anything else.
 
-Known trade-offs versus the bridge: no MCP server on a stable host
-(external agents would have to reach the battery-powered duck),
-conversation memory dies with the battery, and nothing is shared
-between multiple ducks. The bridge remains the right shape for a home
-with an always-on server; `direct` is the right shape for everyone
-else. Not scheduled — recorded here as the designated third path.
+Known trade-offs versus the bridge: conversation memory dies with the
+battery, and nothing is shared between multiple ducks. The bridge
+remains the right shape for a home with an always-on server; `direct`
+is the right shape for everyone else.
+
+**Designated evolution: an MCP server on the duck itself.** The direct
+backend can expose the robot tool catalog as its own MCP server
+(stateless Streamable HTTP, `[direct.mcp]` config, off by default) —
+the same allowlist and clamps, served from the robot. This completes
+the matrix (direct + Arkimede = voice + home automation + body,
+no bridge) and makes the duck registrable by *any* MCP-capable client
+(Claude Desktop, Claude Code, other agents) independently of voice.
+Security posture: the bearer token is **mandatory** when enabled (an
+HTTP server accepting motion commands on the robot is more sensitive
+than the same server on the bridge); allowlist, clamps, and robotd's
+deadman remain underneath. Known limits stay: battery and DHCP make
+the duck a flapping MCP host — fine for tinkering, while the bridge
+stays the solid registration target for daily Arkimede use.
 
 ## Future: multi-satellite (one bridge, many ducks)
 

@@ -113,13 +113,25 @@ dell'ADR 0002 più i servizi url+key dell'ADR 0004 fanno sì che
 `backends/direct` si affianchi a `wyoming` e `agent` senza toccare
 altro.
 
-Compromessi noti rispetto al bridge: niente server MCP su un host
-stabile (gli agenti esterni dovrebbero raggiungere l'anatra a
-batteria), la memoria di conversazione muore con la batteria, e nulla
-è condiviso tra più anatre. Il bridge resta la forma giusta per una
-casa con un server sempre acceso; `direct` è la forma giusta per tutti
-gli altri. Non pianificato — registrato qui come terza strada
-designata.
+Compromessi noti rispetto al bridge: la memoria di conversazione muore
+con la batteria, e nulla è condiviso tra più anatre. Il bridge resta
+la forma giusta per una casa con un server sempre acceso; `direct` è
+la forma giusta per tutti gli altri.
+
+**Evoluzione designata: un server MCP sull'anatra stessa.** Il backend
+direct può esporre il catalogo dei tool robot come proprio server MCP
+(Streamable HTTP stateless, config `[direct.mcp]`, spento di default) —
+stessa allowlist e stessi clamp, serviti dal robot. Questo completa la
+matrice (direct + Arkimede = voce + domotica + corpo, senza bridge) e
+rende l'anatra registrabile da *qualunque* client MCP (Claude Desktop,
+Claude Code, altri agenti) indipendentemente dalla voce. Postura di
+sicurezza: il bearer token è **obbligatorio** quando abilitato (un
+server HTTP che accetta comandi di movimento sul robot è più delicato
+dello stesso server sul bridge); sotto restano allowlist, clamp e il
+deadman di robotd. I limiti noti rimangono: batteria e DHCP fanno
+dell'anatra un host MCP intermittente — bene per sperimentare, mentre
+il bridge resta il bersaglio di registrazione solido per l'uso
+quotidiano con Arkimede.
 
 ## Futuro: multi-satellite (un bridge, più anatre)
 
