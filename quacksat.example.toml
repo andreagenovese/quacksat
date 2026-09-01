@@ -34,10 +34,11 @@ mode = "openwakeword"
 # openWakeWord models — populate with scripts/fetch-wake-models.sh <dir>.
 # On the robot: /var/lib/quacksat/models. For dev: "models".
 models_dir = "/var/lib/quacksat/models"
-# Wake model file inside models_dir ("hey Jarvis"). A custom phrase (e.g.
-# "hey Daffy") is trained with openWakeWord's synthetic pipeline and
-# dropped in here.
-model = "hey_jarvis_v0.1.onnx"
+# Wake model file inside models_dir. "hey Daffy" is quacksat's own wake
+# word and ships in the repo (models/hey_daffy.onnx); pretrained
+# alternatives (hey_jarvis, ...) or your own phrase trained per
+# docs/custom-wake-word.md drop in here.
+model = "hey_daffy.onnx"
 # Detection threshold on the 0..1 score.
 threshold = 0.5
 

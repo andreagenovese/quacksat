@@ -233,7 +233,7 @@ impl Default for WakeConfig {
         Self {
             mode: WakeMode::Energy,
             models_dir: "/var/lib/quacksat/models".to_string(),
-            model: "hey_jarvis_v0.1.onnx".to_string(),
+            model: "hey_daffy.onnx".to_string(),
             threshold: 0.5,
         }
     }

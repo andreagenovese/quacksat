@@ -81,9 +81,10 @@ scripts/deploy.sh <duck-host>     # install everything over ssh
 The deploy installs the binary (`/usr/local/bin/quacksat`), the systemd
 unit and its unprivileged service account, a default config at
 `/etc/robot/quacksat.toml` (kept on redeploys — edit it there), and the
-wake-word models in `/var/lib/quacksat/models` (any custom model in
-your local `models/`, e.g. one trained per
-`docs/custom-wake-word.md`, rides along). Then:
+wake-word models in `/var/lib/quacksat/models` — including
+**"hey Daffy"**, quacksat's own wake word, which ships in this repo
+(`models/hey_daffy.onnx`); any extra model in your local `models/`
+(e.g. one trained per `docs/custom-wake-word.md`) rides along. Then:
 
 ```sh
 ssh <duck-host> journalctl -u quacksat -f

@@ -1,5 +1,8 @@
 #!/bin/sh
-# Fetch the openWakeWord ONNX models (Apache-2.0, github.com/dscripka/openWakeWord).
+# Fetch the openWakeWord ONNX models (Apache-2.0, github.com/dscripka/openWakeWord):
+# the two shared feature models every wake word needs, plus pretrained
+# wake models. quacksat's own "hey Daffy" model ships in the repo and is
+# not downloaded here; hey_jarvis is fetched by default for the tests.
 # Usage: scripts/fetch-wake-models.sh [dest-dir] [wake-model...]
 # Defaults: dest-dir = ./models, wake model = hey_jarvis_v0.1.onnx
 set -eu

@@ -5,6 +5,7 @@
 CLAUDE.local*
 /private/
 /models/
+!/models/hey_daffy.onnx
 /bridge/config*.toml
 !/bridge/config.example.toml
 __pycache__/

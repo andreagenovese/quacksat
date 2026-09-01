@@ -83,9 +83,11 @@ scripts/deploy.sh <host-anatra>   # installa tutto via ssh
 Il deploy installa il binario (`/usr/local/bin/quacksat`), la unit
 systemd col suo account di servizio non privilegiato, una config di
 default in `/etc/robot/quacksat.toml` (conservata ai redeploy —
-modificala lì), e i modelli wake word in `/var/lib/quacksat/models`
-(un eventuale modello custom nella tua cartella `models/` locale, ad
-es. allenato secondo `docs/custom-wake-word.md`, viaggia insieme).
+modificala lì), e i modelli wake word in `/var/lib/quacksat/models` — inclusa
+**«hey Daffy»**, la wake word propria di quacksat, che è nel repo
+(`models/hey_daffy.onnx`); ogni altro modello nella tua cartella
+`models/` locale (ad es. allenato secondo `docs/custom-wake-word.md`)
+viaggia insieme.
 Poi:
 
 ```sh
