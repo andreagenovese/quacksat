@@ -1,0 +1,18 @@
+# Reference bridge as a container. Copy config.example.toml to
+# config.toml first (it is gitignored — it carries your API keys).
+#
+#   docker compose up -d --build
+#   docker compose logs -f bridge
+#
+# Protocol smoke test without any AI service:
+#   docker compose run --rm --service-ports bridge python bridge.py --fake
+services:
+  bridge:
+    build: .
+    container_name: quacksat-bridge
+    restart: unless-stopped
+    ports:
+      - "8765:8765"   # satellite WebSocket
+      - "8766:8766"   # MCP server (when [mcp] enabled)
+    volumes:
+      - ./config.toml:/config/config.toml:ro

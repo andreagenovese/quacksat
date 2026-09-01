@@ -67,16 +67,76 @@ robot è in attesa — dicembre 2026.
   in dialetto OpenAI, senza bridge, e può servire il proprio endpoint
   MCP così gli agenti guidano il robot direttamente.
 
-## Compilazione
+## Come iniziare
 
-La board dell'anatra è un Rockchip RK3566 aarch64 con Armbian. macOS non ha
-un sysroot aarch64-linux, quindi la cross-build va fatta in Docker/Linux
-(vedi `scripts/`). Per sviluppare senza il robot, `robotd --fake` esegue il
-demone senza hardware, oppure si può inoltrare il socket reale:
+### 1. Build e installazione sull'anatra
+
+La board dell'anatra è un Rockchip RK3566 aarch64 con Armbian; macOS
+non ha un sysroot aarch64-linux, quindi la build gira in un container
+Linux (serve Docker):
 
 ```sh
-ssh -L /tmp/robotd.sock:/run/robotd.sock <duck>
+scripts/build-aarch64.sh          # cross-build del binario release
+scripts/deploy.sh <host-anatra>   # installa tutto via ssh
 ```
+
+Il deploy installa il binario (`/usr/local/bin/quacksat`), la unit
+systemd col suo account di servizio non privilegiato, una config di
+default in `/etc/robot/quacksat.toml` (conservata ai redeploy —
+modificala lì), e i modelli wake word in `/var/lib/quacksat/models`
+(un eventuale modello custom nella tua cartella `models/` locale, ad
+es. allenato secondo `docs/custom-wake-word.md`, viaggia insieme).
+Poi:
+
+```sh
+ssh <host-anatra> journalctl -u quacksat -f
+```
+
+Scegli il backend nella config: `wyoming` non richiede altro da questa
+lista; `agent` richiede un bridge attivo (sotto); `direct` richiede gli
+URL di tre endpoint in dialetto OpenAI.
+
+### 2. Avviare il bridge (backend agent)
+
+Su una macchina qualunque con Python 3.11+ (tipicamente il server
+sempre acceso):
+
+```sh
+cd bridge
+cp config.example.toml config.toml   # poi modificalo: url + chiavi LLM/STT/TTS
+python3 -m venv .venv && .venv/bin/pip install websockets "mcp>=2" uvicorn
+.venv/bin/python bridge.py --config config.toml
+```
+
+Punta il satellite verso il bridge (`[agent] url =
+"ws://<host-bridge>:8765"`). `--fake` al posto di `--config` esercita
+l'intero protocollo senza servizi AI. Dettagli e profili dei provider:
+`bridge/README.md`.
+
+### 3. Il bridge in Docker
+
+```sh
+cd bridge
+cp config.example.toml config.toml   # poi modificalo
+docker compose up -d --build
+docker compose logs -f bridge
+```
+
+Porte: 8765 (WebSocket del satellite), 8766 (server MCP quando `[mcp]`
+è abilitato). Smoke test del protocollo senza servizi AI:
+`docker compose run --rm --service-ports bridge python bridge.py --fake`.
+
+### Sviluppare senza il robot
+
+`robotd --fake` (da un checkout di `pollen-robotics/microduck`) fa le
+veci del robot vero, oppure si inoltra il socket reale:
+
+```sh
+ssh -L /tmp/robotd.sock:/run/robotd.sock <anatra>
+```
+
+Su macOS mic e speaker funzionano via sox — vedi gli hook
+`capture_command` / `playback_program` in `quacksat.example.toml`.
 
 ## Licenza
 
