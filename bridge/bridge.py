@@ -46,13 +46,42 @@ DEFAULTS = {
     },
     "stt": {"base_url": "http://localhost:9000/v1", "api_key": "", "model": "", "language": ""},
     "tts": {"base_url": "http://localhost:9100/v1", "api_key": "", "model": "piper", "voice": ""},
-    "behavior": {"follow_up": False, "history_max_messages": 20},
+    "behavior": {"follow_up": False, "history_max_messages": 20, "wake_window": 0.25},
     "mcp": {"enabled": False, "bind": "0.0.0.0", "port": 8766},
 }
 
-# The MCP server (mcp_server.py) forwards tool calls to whichever
-# satellite is currently connected.
-REGISTRY = {"session": None}
+# The MCP server (mcp_server.py) forwards tool calls to connected
+# satellites, keyed by the name each announces in session.start.
+REGISTRY = {"sessions": {}}
+
+class WakeArbiter:
+    """Multi-duck wake arbitration: when several ducks hear the wake word
+    within a short window, the highest score (the closest duck) wins and
+    the others are told to stop listening (listen.stop)."""
+
+    def __init__(self, window_s):
+        self.window = window_s
+        self.candidates = []
+        self.task = None
+
+    def wake(self, session, score):
+        self.candidates.append((score if score is not None else 0.0, session))
+        if self.task is None or self.task.done():
+            self.task = asyncio.create_task(self._decide())
+
+    async def _decide(self):
+        await asyncio.sleep(self.window)
+        candidates, self.candidates = self.candidates, []
+        if len(candidates) <= 1:
+            return
+        winner = max(candidates, key=lambda c: c[0])[1]
+        for score, session in candidates:
+            if session is not winner:
+                log.info("wake arbitration: %s (%.2f) loses to %s", session.name, score, winner.name)
+                session.audio.clear()
+                await session.send({"type": "listen.stop"})
+
+ARBITER = WakeArbiter(0.25)
 
 
 def load_config(path):
@@ -232,6 +261,7 @@ class Session:
         self.ws = ws
         self.config = config
         self.services = services
+        self.name = "quacksat"
         self.audio = bytearray()
         self.audio_rate = 16000
         self.tools = []
@@ -337,16 +367,22 @@ class Session:
             if kind == "session.start":
                 self.tools = event.get("tools", [])
                 self.audio_rate = event.get("audio", {}).get("rate", 16000)
+                self.name = event.get("satellite", {}).get("name") or "quacksat"
+                previous = REGISTRY["sessions"].get(self.name)
+                if previous is not None and previous is not self:
+                    log.warning("duck %s reconnected — replacing the old session", self.name)
+                REGISTRY["sessions"][self.name] = self
                 log.info(
                     "session: %s v%s, %d tools",
-                    event.get("satellite", {}).get("name", "?"),
+                    self.name,
                     event.get("satellite", {}).get("version", "?"),
                     len(self.tools),
                 )
                 await self.send({"type": "session.ready", "version": 1, "agent": {"name": "bridge"}})
             elif kind == "wake":
-                log.info("wake (%s)", event.get("model", "?"))
+                log.info("wake %s (%s, score %s)", self.name, event.get("model", "?"), event.get("score"))
                 self.audio.clear()
+                ARBITER.wake(self, event.get("score"))
             elif kind == "utterance.end":
                 pcm = bytes(self.audio)
                 self.audio.clear()
@@ -383,6 +419,7 @@ async def main():
 
     config = load_config(args.config)
     services = Services(config, args.fake)
+    ARBITER.window = config["behavior"]["wake_window"]
     token = config["server"]["token"]
 
     async def handler(ws):
@@ -394,15 +431,14 @@ async def main():
                 return
         log.info("satellite connected: %s", ws.remote_address)
         session = Session(ws, config, services)
-        REGISTRY["session"] = session
         try:
             await session.handle()
         except websockets.ConnectionClosed:
             pass
         finally:
-            if REGISTRY["session"] is session:
-                REGISTRY["session"] = None
-        log.info("satellite disconnected")
+            if REGISTRY["sessions"].get(session.name) is session:
+                del REGISTRY["sessions"][session.name]
+        log.info("satellite disconnected: %s", session.name)
 
     mcp_task = None
     if config["mcp"]["enabled"]:

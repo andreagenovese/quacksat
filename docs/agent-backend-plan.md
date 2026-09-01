@@ -90,7 +90,7 @@ details. Italian copy: `agent-backend-plan.it.md`.
    above), robot MCP registration, eventually a native `/voice` gateway
    replacing the bridge.
 
-## Future: a `direct` backend (self-contained duck)
+## Implemented: a `direct` backend (self-contained duck)
 
 A third backend, `backend = "direct"`, where the satellite itself speaks
 the OpenAI dialect — STT → LLM (tool calling) → TTS over plain HTTP,
@@ -126,43 +126,45 @@ deadman remain underneath. Known limits stay: battery and DHCP make
 the duck a flapping MCP host — fine for tinkering, while the bridge
 stays the solid registration target for daily Arkimede use.
 
-## Future: multi-satellite (one bridge, many ducks)
+## Implemented: multi-satellite (one bridge, many ducks)
 
-The protocol already allows it: every duck opens its own WebSocket,
+The protocol already allowed it: every duck opens its own WebSocket,
 announces itself in `session.start` (name included), and gets an
-independent session — its own audio buffer, turns, and history. What
-the reference bridge still lacks is the plumbing where one duck must be
-*chosen*; the design for it, when a second duck exists:
+independent session — its own audio buffer, turns, and history. The
+reference bridge now has the plumbing where one duck must be *chosen*:
 
-1. **Identity**: the session registry becomes a `name → session` map
-   (the name already travels in `session.start`; it just needs to be
-   configurable per duck).
-2. **Addressed tools**: robot tools gain a `duck` argument, or the
-   bridge exposes a per-duck catalog and the agent picks;
-   `robot_state` with no argument answers for all of them.
-3. **Wake arbitration** (the interesting one): two ducks in adjacent
-   rooms both hear the wake word. As Home Assistant does with its
-   satellites, the bridge collects `wake` events in a short window
-   (~200 ms), the **highest score wins** (the duck closest to the
-   speaker), and the others get `listen.stop`. The `wake` event
-   carries its score precisely for this.
-4. **Whole-home memory**: the conversation belongs to the house, not
-   to a duck — start talking in the kitchen, continue in the living
-   room. With an agent platform (Arkimede) this is nearly free: memory
-   already lives in the agent; the bridge only routes the reply to the
-   duck that captured the last utterance.
+1. **Identity**: each satellite sets `[agent] name` in its config
+   ("duck-kitchen", "duck-studio", ...); the name travels in
+   `session.start` and keys the bridge's session registry (a
+   reconnect under the same name replaces the old session).
+2. **Addressed tools**: with more than one duck connected, the
+   bridge's MCP tools gain a mandatory `duck` argument (an enum of
+   the connected names, injected into every tool schema); a call
+   without it is refused with the list of names. With a single duck
+   nothing changes — no argument, no friction.
+3. **Wake arbitration**: two ducks in adjacent rooms both hear the
+   wake word. As Home Assistant does with its satellites, the bridge
+   collects `wake` events in a short window (`[behavior] wake_window`,
+   default 250 ms), the **highest score wins** (the duck closest to
+   the speaker), and the others get `listen.stop` and their buffered
+   audio dropped. The `wake` event carries its score precisely for
+   this — `WakeDetector::last_score()` on the satellite side.
+4. **Whole-home memory** (with an agent platform): the conversation
+   belongs to the house, not to a duck — memory already lives in the
+   agent; the bridge routes each reply to the duck that captured the
+   last utterance.
 
 This is also *why* multi-duck demands the server-side bridge: wake
 arbitration and shared memory need one point that sees every duck at
 once — impossible with an on-board bridge or the `direct` backend.
 Upstream's "chorale" (ducks singing in harmony) is the same instinct;
-the quacksat version is distributed voice presence. Registry map and
-wake arbitration are an afternoon of bridge work, zero satellite or
-protocol changes.
+the quacksat version is distributed voice presence. It took exactly
+what was predicted: registry map plus wake arbitration in the bridge,
+one config field on the satellite, zero protocol changes.
 
 ## Out of scope (deliberate)
 
 - Barge-in (needs AEC — ADR 0003 defers it).
 - Speech-to-speech realtime (path C): a different bridge, same
   satellite protocol.
-- mDNS/discovery, multi-satellite sessions.
+- mDNS/discovery.

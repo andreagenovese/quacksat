@@ -15,6 +15,13 @@ pub trait WakeDetector: Send {
     /// listening after a conversation turn, so the detector cannot
     /// re-trigger on its own stale wake phrase.
     fn reset(&mut self) {}
+
+    /// Score of the detection that made the last `feed` return true, if
+    /// the detector produces one. The bridge uses it for multi-duck wake
+    /// arbitration (highest score = duck closest to the speaker).
+    fn last_score(&self) -> Option<f32> {
+        None
+    }
 }
 
 pub fn from_config(config: &WakeConfig) -> anyhow::Result<Box<dyn WakeDetector>> {

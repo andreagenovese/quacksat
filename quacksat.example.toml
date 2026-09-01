@@ -47,6 +47,10 @@ threshold = 0.5
 # bearer token for the upgrade request.
 url = "ws://127.0.0.1:8765"
 # token = "..."
+# Name announced to the bridge in session.start. With several ducks on
+# one bridge, give each a unique name (it becomes the `duck` argument
+# of the bridge's MCP tools): "duck-kitchen", "duck-studio", ...
+name = "quacksat"
 
 [wyoming]
 # Where the satellite listens; point Home Assistant's Wyoming integration

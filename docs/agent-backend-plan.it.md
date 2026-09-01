@@ -96,7 +96,7 @@ design della strada B; il contratto wire vive in ADR 0004 +
    sopra), registrazione MCP robot, eventualmente un gateway `/voice`
    nativo che sostituisce il bridge.
 
-## Futuro: un backend `direct` (anatra autosufficiente)
+## Implementato: un backend `direct` (anatra autosufficiente)
 
 Un terzo backend, `backend = "direct"`, in cui è il satellite stesso a
 parlare il dialetto OpenAI — STT → LLM (tool calling) → TTS su
@@ -134,45 +134,48 @@ dell'anatra un host MCP intermittente — bene per sperimentare, mentre
 il bridge resta il bersaglio di registrazione solido per l'uso
 quotidiano con Arkimede.
 
-## Futuro: multi-satellite (un bridge, più anatre)
+## Implementato: multi-satellite (un bridge, più anatre)
 
-Il protocollo già lo permette: ogni anatra apre il suo WebSocket, si
+Il protocollo già lo permetteva: ogni anatra apre il suo WebSocket, si
 presenta in `session.start` (nome incluso) e ottiene una sessione
-indipendente — buffer audio, turni e memoria propri. Ciò che manca al
-bridge di riferimento è la parte in cui *una* anatra va scelta; il
-design, per quando esisterà una seconda anatra:
+indipendente — buffer audio, turni e memoria propri. Il bridge di
+riferimento ora ha la parte in cui *una* anatra va scelta:
 
-1. **Identità**: il registro delle sessioni diventa una mappa
-   `nome → sessione` (il nome viaggia già in `session.start`; basta
-   renderlo configurabile per-anatra).
-2. **Tool con indirizzo**: i tool robot guadagnano un argomento
-   `duck`, oppure il bridge espone il catalogo per-anatra e l'agente
-   sceglie; `robot_state` senza argomento risponde per tutte.
-3. **Arbitraggio del wake** (il punto interessante): due anatre in
-   stanze adiacenti sentono entrambe la wake word. Come fa Home
-   Assistant coi suoi satelliti, il bridge raccoglie gli eventi `wake`
-   in una piccola finestra (~200 ms), **vince lo score più alto**
-   (l'anatra più vicina a chi parla), e le altre ricevono
-   `listen.stop`. L'evento `wake` porta lo score esattamente per
-   questo.
-4. **Memoria di casa**: la conversazione appartiene alla casa, non a
-   un'anatra — inizi a parlare in cucina, continui in salotto. Con una
-   piattaforma agente (Arkimede) è quasi gratis: la memoria vive già
-   nell'agente; il bridge deve solo instradare la risposta all'anatra
-   che ha catturato l'ultima frase.
+1. **Identità**: ogni satellite imposta `[agent] name` nella sua
+   config ("duck-cucina", "duck-studio", ...); il nome viaggia in
+   `session.start` e fa da chiave nel registro delle sessioni del
+   bridge (una riconnessione con lo stesso nome sostituisce la
+   sessione vecchia).
+2. **Tool con indirizzo**: con più di un'anatra connessa, i tool MCP
+   del bridge guadagnano un argomento `duck` obbligatorio (un enum dei
+   nomi connessi, iniettato in ogni schema); una chiamata senza viene
+   rifiutata con la lista dei nomi. Con una sola anatra non cambia
+   nulla — niente argomento, niente attrito.
+3. **Arbitraggio del wake**: due anatre in stanze adiacenti sentono
+   entrambe la wake word. Come fa Home Assistant coi suoi satelliti,
+   il bridge raccoglie gli eventi `wake` in una piccola finestra
+   (`[behavior] wake_window`, default 250 ms), **vince lo score più
+   alto** (l'anatra più vicina a chi parla), e le altre ricevono
+   `listen.stop` e lo svuotamento dell'audio bufferizzato. L'evento
+   `wake` porta lo score esattamente per questo —
+   `WakeDetector::last_score()` lato satellite.
+4. **Memoria di casa** (con una piattaforma agente): la conversazione
+   appartiene alla casa, non a un'anatra — la memoria vive già
+   nell'agente; il bridge instrada ogni risposta all'anatra che ha
+   catturato l'ultima frase.
 
 È anche il *perché* il multi-anatra pretende il bridge lato server:
 arbitraggio del wake e memoria condivisa richiedono un punto che veda
 tutte le anatre insieme — impossibile con un bridge a bordo o col
 backend `direct`. Il "chorale" di upstream (anatre che cantano in
 armonia) è lo stesso istinto; la versione quacksat è la presenza
-vocale distribuita. Mappa nel registro e arbitraggio del wake sono un
-pomeriggio di lavoro sul bridge, zero modifiche a satellite e
-protocollo.
+vocale distribuita. È costato esattamente quanto previsto: mappa nel
+registro più arbitraggio del wake nel bridge, un campo di config sul
+satellite, zero modifiche al protocollo.
 
 ## Fuori scope (deliberato)
 
 - Barge-in (serve l'AEC — l'ADR 0003 lo rimanda).
 - Speech-to-speech realtime (strada C): un bridge diverso, stesso
   protocollo satellite.
-- mDNS/discovery, sessioni multi-satellite.
+- mDNS/discovery.

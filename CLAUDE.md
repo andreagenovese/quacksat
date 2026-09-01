@@ -82,9 +82,10 @@ Study documents to put in `docs/study/`:
 ## Status (2026-09-01) and next steps
 
 The original build plan (scaffold → microduck study → ADR 0003 → core →
-wyoming → agent/bridge) is complete, plus a third `direct` backend and
-the duck-side MCP server. Everything is validated live on a dev Mac
-against real services; see README → Status.
+wyoming → agent/bridge) is complete, plus a third `direct` backend,
+the duck-side MCP server, and multi-duck support in the bridge (wake
+arbitration by score, per-duck MCP tool addressing). Everything is
+validated live on a dev Mac against real services; see README → Status.
 
 Next:
 

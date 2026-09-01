@@ -89,6 +89,11 @@ raggiungibile. La forma dello schema è JSON Schema standard,
 utilizzabile direttamente come `tools[].function.parameters` di OpenAI
 o come listing di tool MCP.
 
+`satellite.name` viene da `[agent] name` nella config del satellite e
+identifica l'anatra presso il server. Con più anatre su un bridge,
+dai a ciascuna un nome unico: fa da chiave nel registro delle sessioni
+del bridge e diventa l'argomento `duck` dei tool MCP del bridge.
+
 ### `wake`
 La wake word locale è scattata. Il satellite inizia lo streaming
 dell'audio del microfono subito dopo questo evento (pre-roll incluso).
@@ -96,6 +101,12 @@ dell'audio del microfono subito dopo questo evento (pre-roll incluso).
 ```json
 {"type": "wake", "model": "hey_daffy", "score": 0.93}
 ```
+
+`score` è la confidenza del rilevatore (null per i rilevatori che non
+ne hanno una). I server con più anatre connesse lo usano per
+l'arbitraggio del wake: i wake che arrivano in una piccola finestra
+competono, vince lo score più alto, le perdenti ricevono
+`listen.stop`.
 
 ### frame binari
 Audio del microfono nel formato di `session.start`, ~32 ms per frame.

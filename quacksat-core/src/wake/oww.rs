@@ -44,6 +44,7 @@ pub struct OpenWakeWord {
     mels: VecDeque<[f32; MEL_BANDS]>,
     feats: VecDeque<[f32; EMB_DIM]>,
     refractory: u32,
+    last_score: Option<f32>,
 }
 
 impl OpenWakeWord {
@@ -72,6 +73,7 @@ impl OpenWakeWord {
             mels: VecDeque::with_capacity(EMB_WINDOW + MEL_FRAMES_PER_CHUNK),
             feats: VecDeque::with_capacity(WAKE_WINDOW),
             refractory: 0,
+            last_score: None,
         })
     }
 
@@ -151,6 +153,7 @@ impl OpenWakeWord {
         }
         if score >= self.threshold {
             self.refractory = REFRACTORY_CHUNKS;
+            self.last_score = Some(score);
             return Ok(true);
         }
         Ok(false)
@@ -158,6 +161,10 @@ impl OpenWakeWord {
 }
 
 impl WakeDetector for OpenWakeWord {
+    fn last_score(&self) -> Option<f32> {
+        self.last_score
+    }
+
     fn reset(&mut self) {
         self.pending.clear();
         self.lookback = [0.0; LOOKBACK];

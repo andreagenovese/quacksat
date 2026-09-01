@@ -67,7 +67,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
         &json!({
             "type": "session.start",
             "version": 1,
-            "satellite": {"name": "quacksat", "version": env!("CARGO_PKG_VERSION")},
+            "satellite": {"name": deps.config.agent.name, "version": env!("CARGO_PKG_VERSION")},
             "audio": {"rate": PIPELINE_RATE, "channels": 1, "format": "s16le"},
             "tools": tools::catalog(),
         }),
@@ -215,7 +215,11 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         if !chirp(deps.control) {
                             wake_ack(deps);
                         }
-                        send_json(&mut ws, &json!({"type": "wake", "model": model}))?;
+                        let score = deps.detector.last_score();
+                        send_json(
+                            &mut ws,
+                            &json!({"type": "wake", "model": model, "score": score}),
+                        )?;
                         enter_streaming(&mut mic, &mut vad, &mut streamed_frames, &mut speech_seen);
                         for buffered in preroll.drain(..) {
                             send_audio(&mut ws, &buffered)?;

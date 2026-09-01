@@ -49,3 +49,6 @@ port = 8766
 # Reopen the mic after each reply (multi-turn without wake word).
 follow_up = false
 history_max_messages = 20
+# Multi-duck wake arbitration: wake events arriving within this many
+# seconds compete; the highest score wins, the others get listen.stop.
+wake_window = 0.25

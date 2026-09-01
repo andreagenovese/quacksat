@@ -74,9 +74,11 @@ Documenti di studio da mettere in `docs/study/`:
 ## Stato (2026-09-01) e prossimi passi
 
 Il piano originale (scaffold → studio di microduck → ADR 0003 → core →
-wyoming → agent/bridge) è completato, più un terzo backend `direct` e
-il server MCP lato anatra. Tutto validato dal vivo su un Mac di
-sviluppo contro servizi reali; vedi README → Stato.
+wyoming → agent/bridge) è completato, più un terzo backend `direct`,
+il server MCP lato anatra e il supporto multi-anatra nel bridge
+(arbitraggio del wake per score, indirizzamento per-anatra dei tool
+MCP). Tutto validato dal vivo su un Mac di sviluppo contro servizi
+reali; vedi README → Stato.
 
 Prossimi passi:
 

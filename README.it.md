@@ -62,7 +62,9 @@ robot è in attesa — dicembre 2026.
 - `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.md`)
   più il bridge di riferimento in `bridge/` — STT/LLM/TTS come endpoint
   url+key in dialetto OpenAI, tool robot dietro una allowlist
-  esaustiva, e un server MCP che li espone agli agenti MCP-native.
+  esaustiva, e un server MCP che li espone agli agenti MCP-native. Multi-anatra: più satelliti su un bridge, arbitraggio
+  del wake per score (risponde l'anatra che ti ha sentito meglio),
+  indirizzamento per-anatra dei tool MCP.
 - `direct`: il satellite autosufficiente — chiama da sé i tre endpoint
   in dialetto OpenAI, senza bridge, e può servire il proprio endpoint
   MCP così gli agenti guidano il robot direttamente.

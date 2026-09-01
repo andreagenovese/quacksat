@@ -148,6 +148,9 @@ pub struct AgentConfig {
     pub url: String,
     /// Optional bearer token sent on the WebSocket upgrade.
     pub token: Option<String>,
+    /// Satellite name announced in `session.start` — give each duck its
+    /// own (kitchen, studio...) so the bridge can tell them apart.
+    pub name: String,
 }
 
 impl Default for AgentConfig {
@@ -155,6 +158,7 @@ impl Default for AgentConfig {
         Self {
             url: "ws://127.0.0.1:8765".to_string(),
             token: None,
+            name: "quacksat".to_string(),
         }
     }
 }

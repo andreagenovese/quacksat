@@ -82,6 +82,11 @@ First message on every connection.
 unreachable. The schema shape is standard JSON Schema, directly usable
 as OpenAI `tools[].function.parameters` or an MCP tool listing.
 
+`satellite.name` comes from `[agent] name` in the satellite config and
+identifies the duck to the server. With several ducks on one bridge,
+give each a unique name: it keys the bridge's session registry and
+becomes the `duck` argument of the bridge's MCP tools.
+
 ### `wake`
 Local wake word fired. The satellite starts streaming mic audio
 immediately after this event (pre-roll included).
@@ -89,6 +94,11 @@ immediately after this event (pre-roll included).
 ```json
 {"type": "wake", "model": "hey_daffy", "score": 0.93}
 ```
+
+`score` is the detector's confidence (null for detectors that have
+none). Servers with several connected ducks use it for wake
+arbitration: wakes landing within a short window compete, the highest
+score wins, the losers get `listen.stop`.
 
 ### binary frames
 Mic audio in the `session.start` format, ~32 ms per frame. Sent only

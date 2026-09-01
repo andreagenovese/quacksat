@@ -60,7 +60,9 @@ is pending — December 2026.
 - `agent`: the neutral WebSocket protocol (`docs/agent-protocol.md`)
   plus the reference bridge in `bridge/` — STT/LLM/TTS as OpenAI-dialect
   url+key endpoints, robot tools behind an exhaustive allowlist, and an
-  MCP server exposing them to MCP-native agents.
+  MCP server exposing them to MCP-native agents. Multi-duck: several
+  satellites on one bridge, wake arbitration by score (the duck that
+  heard you best answers), per-duck MCP tool addressing.
 - `direct`: the self-contained satellite — it calls the three
   OpenAI-dialect endpoints itself, no bridge, and can serve its own MCP
   endpoint so agents drive the robot directly.
