@@ -113,6 +113,7 @@ def speakable(text):
     The agent's prompt should already ask for plain spoken text; this is
     the safety net for the asterisks and emoji that slip through anyway.
     """
+    text = re.sub(r"<think>.*?</think>", " ", text, flags=re.DOTALL)  # reasoning models
     text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)  # code blocks
     text = re.sub(r"`([^`]*)`", r"\1", text)                 # inline code
     text = re.sub(r"\*\*|__|\*|_|~~|#+ ", "", text)          # md emphasis/headers
