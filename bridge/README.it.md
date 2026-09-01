@@ -37,6 +37,13 @@ volta per turno — l'intero giro del protocollo senza dipendenze.
   robot arriveranno via MCP, fase 2).
 - **LLM nudo**: funziona comunque; solo voce.
 
-Il server MCP (che esporrà i tool del satellite agli agenti MCP-native
-come Arkimede) è il prossimo pezzo pianificato — vedi
-`docs/agent-backend-plan.md`.
+## Server MCP (tool robot per agenti MCP-native)
+
+Con `[mcp] enabled = true` (richiede `pip install "mcp>=2" uvicorn`) il
+bridge espone il catalogo tool del satellite come server MCP su
+`http://<host>:8766/mcp` (Streamable HTTP). Registralo nella tua
+piattaforma agente (es. i server MCP di Arkimede) e l'agente chiama il
+robot dal proprio loop — i nomi tool usano underscore (`robot_move`);
+i risultati portano il JSON del `tool.result` del satellite. Un
+satellite alla volta; senza satellite connesso le chiamate rispondono
+`no satellite connected`.

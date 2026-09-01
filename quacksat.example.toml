@@ -20,6 +20,10 @@ capture_device = "plughw:aic3104,0"
 # capture_command = ["sox", "-q", "-d", "-t", "raw", "-r", "48000", "-c", "2", "-e", "signed-integer", "-b", "16", "-"]
 # Development hook: playback program spawned with aplay-style arguments.
 # macOS speakers via sox: playback_program = "scripts/aplay-shim-macos.sh"
+# Wake acknowledgement: on the robot the duck chirps via robotd; when it
+# cannot (dev machine, empty sound bank) the satellite plays this wav,
+# or a built-in synthesized quack if unset.
+# wake_sound = "/path/to/quack.wav"
 
 [wake]
 # "openwakeword" (real wake word), "energy" (bring-up: every utterance

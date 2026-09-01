@@ -37,6 +37,14 @@ api_key = ""
 model = "piper"
 voice = "it_IT-paola-medium"
 
+[mcp]
+# Expose the satellite's robot tools as an MCP server (Streamable HTTP)
+# for MCP-native agents like Arkimede. Endpoint: http://<host>:<port>/mcp
+# Requires: pip install "mcp>=2" uvicorn
+enabled = false
+bind = "0.0.0.0"
+port = 8766
+
 [behavior]
 # Reopen the mic after each reply (multi-turn without wake word).
 follow_up = false

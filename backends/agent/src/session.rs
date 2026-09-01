@@ -39,6 +39,10 @@ enum Mic {
 /// ~320 ms of pre-roll flushed on wake, as in the wyoming backend.
 const PREROLL_FRAMES: usize = 10;
 const POLL: Duration = Duration::from_millis(50);
+/// End-of-utterance silence (~800 ms at 32 ms/frame): long enough that a
+/// natural pause between the wake phrase and the command does not close
+/// the turn before the command is spoken.
+const UTTERANCE_HANGOVER_FRAMES: u32 = 25;
 /// Give up on an utterance if no speech starts within this many frames
 /// (~6 s) or it runs longer than this (~15 s).
 const NO_SPEECH_FRAMES: u32 = 187;
@@ -190,55 +194,59 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
             Err(e) => return Err(e.into()),
         }
 
-        // 2. Then the mic.
-        let Ok(frame) = deps.frames.try_recv() else {
-            continue;
-        };
-        if playing_tts {
-            continue; // deaf while the duck talks (ADR 0003)
-        }
-        match mic {
-            Mic::Idle => {
-                if deps.detector.feed(&frame) {
-                    let model = match deps.config.wake.mode {
-                        quacksat_core::config::WakeMode::Openwakeword => {
-                            deps.config.wake.model.clone()
-                        }
-                        other => format!("{other:?}").to_lowercase(),
-                    };
-                    tracing::info!("wake");
-                    chirp(deps.control);
-                    send_json(&mut ws, &json!({"type": "wake", "model": model}))?;
-                    enter_streaming(&mut mic, &mut vad, &mut streamed_frames, &mut speech_seen);
-                    for buffered in preroll.drain(..) {
-                        send_audio(&mut ws, &buffered)?;
-                    }
-                    send_audio(&mut ws, &frame)?;
-                } else {
-                    if preroll.len() == PREROLL_FRAMES {
-                        preroll.pop_front();
-                    }
-                    preroll.push_back(frame);
-                }
+        // 2. Then the mic — draining the whole backlog: the socket poll
+        // above blocks up to 50 ms while frames arrive every 32 ms, so
+        // one-frame-per-iteration falls behind real time and starves the
+        // wake detector with gapped audio.
+        while let Ok(frame) = deps.frames.try_recv() {
+            if playing_tts {
+                continue; // deaf while the duck talks (ADR 0003)
             }
-            Mic::Streaming => {
-                send_audio(&mut ws, &frame)?;
-                streamed_frames += 1;
-                match vad.feed(&frame) {
-                    Some(VadEvent::SpeechStart) => speech_seen = true,
-                    Some(VadEvent::SpeechEnd) => {
+            match mic {
+                Mic::Idle => {
+                    if deps.detector.feed(&frame) {
+                        let model = match deps.config.wake.mode {
+                            quacksat_core::config::WakeMode::Openwakeword => {
+                                deps.config.wake.model.clone()
+                            }
+                            other => format!("{other:?}").to_lowercase(),
+                        };
+                        tracing::info!("wake");
+                        if !chirp(deps.control) {
+                            wake_ack(deps);
+                        }
+                        send_json(&mut ws, &json!({"type": "wake", "model": model}))?;
+                        enter_streaming(&mut mic, &mut vad, &mut streamed_frames, &mut speech_seen);
+                        for buffered in preroll.drain(..) {
+                            send_audio(&mut ws, &buffered)?;
+                        }
+                        send_audio(&mut ws, &frame)?;
+                    } else {
+                        if preroll.len() == PREROLL_FRAMES {
+                            preroll.pop_front();
+                        }
+                        preroll.push_back(frame);
+                    }
+                }
+                Mic::Streaming => {
+                    send_audio(&mut ws, &frame)?;
+                    streamed_frames += 1;
+                    match vad.feed(&frame) {
+                        Some(VadEvent::SpeechStart) => speech_seen = true,
+                        Some(VadEvent::SpeechEnd) => {
+                            send_json(&mut ws, &json!({"type": "utterance.end"}))?;
+                            stop_streaming(&mut mic, deps);
+                            continue;
+                        }
+                        None => {}
+                    }
+                    let timed_out = (!speech_seen && streamed_frames >= NO_SPEECH_FRAMES)
+                        || streamed_frames >= MAX_UTTERANCE_FRAMES;
+                    if timed_out {
+                        tracing::debug!(streamed_frames, speech_seen, "utterance timeout");
                         send_json(&mut ws, &json!({"type": "utterance.end"}))?;
                         stop_streaming(&mut mic, deps);
-                        continue;
                     }
-                    None => {}
-                }
-                let timed_out = (!speech_seen && streamed_frames >= NO_SPEECH_FRAMES)
-                    || streamed_frames >= MAX_UTTERANCE_FRAMES;
-                if timed_out {
-                    tracing::debug!(streamed_frames, speech_seen, "utterance timeout");
-                    send_json(&mut ws, &json!({"type": "utterance.end"}))?;
-                    stop_streaming(&mut mic, deps);
                 }
             }
         }
@@ -247,7 +255,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
 
 fn enter_streaming(mic: &mut Mic, vad: &mut Vad, streamed: &mut u32, speech_seen: &mut bool) {
     *mic = Mic::Streaming;
-    *vad = Vad::new();
+    *vad = Vad::with_hangover(UTTERANCE_HANGOVER_FRAMES);
     *streamed = 0;
     *speech_seen = false;
 }
@@ -258,25 +266,41 @@ fn stop_streaming(mic: &mut Mic, deps: &mut Deps) {
     deps.detector.reset();
 }
 
-/// The wake acknowledgement stays robotd's job (ADR 0003): a chirp from
-/// the duck itself, independent of the bridge round-trip.
-fn chirp(control: &mut Option<Control>) {
+/// The wake acknowledgement is robotd's job first (ADR 0003): a chirp
+/// from the duck itself, independent of the bridge round-trip. Returns
+/// whether the robot actually accepted it.
+fn chirp(control: &mut Option<Control>) -> bool {
     use duck_ipc_proto as proto;
-    if let Some(c) = control {
-        let call = proto::Call::RobotSound(proto::SoundParams {
-            tag: proto::SoundTag::Chirp,
-            hold: None,
-        });
-        match c.intent(&call) {
-            Ok(result) if !result.accepted => {
-                tracing::debug!(reason = ?result.reason, "chirp refused")
-            }
-            Ok(_) => {}
-            Err(e) => {
-                tracing::warn!(error = %e, "robotd lost — continuing without it");
-                *control = None;
-            }
+    let Some(c) = control else { return false };
+    let call = proto::Call::RobotSound(proto::SoundParams {
+        tag: proto::SoundTag::Chirp,
+        hold: None,
+    });
+    match c.intent(&call) {
+        Ok(result) if result.accepted => true,
+        Ok(result) => {
+            tracing::debug!(reason = ?result.reason, "chirp refused");
+            false
         }
+        Err(e) => {
+            tracing::warn!(error = %e, "robotd lost — continuing without it");
+            *control = None;
+            false
+        }
+    }
+}
+
+/// Local fallback wake acknowledgement, so the user hears the duck is
+/// listening even when robotd cannot quack (dev machine, empty bank).
+fn wake_ack(deps: &mut Deps) {
+    let result = match &deps.config.audio.wake_sound {
+        Some(path) => deps.player.play_wav(std::path::Path::new(path)),
+        None => deps
+            .player
+            .play_pcm(quacksat_core::playback::wake_ack_pcm()),
+    };
+    if let Err(e) = result {
+        tracing::debug!(error = %e, "wake ack not played");
     }
 }
 

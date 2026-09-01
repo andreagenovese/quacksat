@@ -237,7 +237,9 @@ fn handle_frame(
             }
             if deps.detector.feed(frame) {
                 tracing::info!("wake");
-                chirp(deps.control);
+                if !chirp(deps.control) {
+                    wake_ack(deps);
+                }
                 write_event(
                     writer,
                     &Event::new("detection", json!({"name": "quacksat"})),
@@ -284,23 +286,39 @@ fn audio_format() -> Value {
 }
 
 /// The expressive cue stays robotd's job (ADR 0003): a chirp acknowledges
-/// the wake word while TTS remains quacksat's own aplay.
-fn chirp(control: &mut Option<Control>) {
-    if let Some(c) = control {
-        let call = proto::Call::RobotSound(proto::SoundParams {
-            tag: proto::SoundTag::Chirp,
-            hold: None,
-        });
-        match c.intent(&call) {
-            Ok(result) if !result.accepted => {
-                tracing::debug!(reason = ?result.reason, "chirp refused")
-            }
-            Ok(_) => {}
-            Err(e) => {
-                tracing::warn!(error = %e, "robotd lost — continuing without it");
-                *control = None;
-            }
+/// the wake word while TTS remains quacksat's own aplay. Returns whether
+/// the robot actually accepted it.
+fn chirp(control: &mut Option<Control>) -> bool {
+    let Some(c) = control else { return false };
+    let call = proto::Call::RobotSound(proto::SoundParams {
+        tag: proto::SoundTag::Chirp,
+        hold: None,
+    });
+    match c.intent(&call) {
+        Ok(result) if result.accepted => true,
+        Ok(result) => {
+            tracing::debug!(reason = ?result.reason, "chirp refused");
+            false
         }
+        Err(e) => {
+            tracing::warn!(error = %e, "robotd lost — continuing without it");
+            *control = None;
+            false
+        }
+    }
+}
+
+/// Local fallback wake acknowledgement, so the user hears the duck is
+/// listening even when robotd cannot quack (dev machine, empty bank).
+fn wake_ack(deps: &mut Deps) {
+    let result = match &deps.config.audio.wake_sound {
+        Some(path) => deps.player.play_wav(std::path::Path::new(path)),
+        None => deps
+            .player
+            .play_pcm(quacksat_core::playback::wake_ack_pcm()),
+    };
+    if let Err(e) = result {
+        tracing::debug!(error = %e, "wake ack not played");
     }
 }
 

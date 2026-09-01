@@ -87,6 +87,9 @@ pub struct AudioConfig {
     /// `aplay`, invoked with aplay-style arguments (see
     /// scripts/aplay-shim-macos.sh for a sox-based shim).
     pub playback_program: Option<String>,
+    /// Wake acknowledgement wav played locally when robotd cannot chirp
+    /// (refused or unreachable). Unset = a built-in synthesized quack.
+    pub wake_sound: Option<String>,
 }
 
 impl Default for AudioConfig {
@@ -96,6 +99,7 @@ impl Default for AudioConfig {
             capture_device: "plughw:aic3104,0".to_string(),
             capture_command: None,
             playback_program: None,
+            wake_sound: None,
         }
     }
 }

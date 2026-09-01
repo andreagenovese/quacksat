@@ -23,14 +23,24 @@ pub struct Vad {
     floor: f32,
     in_speech: bool,
     hangover: u32,
+    hangover_frames: u32,
 }
 
 impl Vad {
     pub fn new() -> Self {
+        Self::with_hangover(HANGOVER_FRAMES)
+    }
+
+    /// A VAD with a custom end-of-speech hangover. Utterance segmentation
+    /// for STT wants a much longer one (~800 ms) than wake gating: a
+    /// natural pause between the wake phrase and the command must not
+    /// close the turn.
+    pub fn with_hangover(hangover_frames: u32) -> Self {
         Self {
             floor: 200.0,
             in_speech: false,
             hangover: 0,
+            hangover_frames,
         }
     }
 
@@ -55,11 +65,11 @@ impl Vad {
         match (self.in_speech, active) {
             (false, true) => {
                 self.in_speech = true;
-                self.hangover = HANGOVER_FRAMES;
+                self.hangover = self.hangover_frames;
                 Some(VadEvent::SpeechStart)
             }
             (true, true) => {
-                self.hangover = HANGOVER_FRAMES;
+                self.hangover = self.hangover_frames;
                 None
             }
             (true, false) => {

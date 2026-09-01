@@ -35,6 +35,12 @@ the full protocol loop with zero dependencies.
   internal — robot tools reach it via MCP, phase 2).
 - **Bare LLM**: works too; voice-only.
 
-The MCP server (exposing the satellite's tools to MCP-native agents
-like Arkimede) is the next planned piece — see
-`docs/agent-backend-plan.md`.
+## MCP server (robot tools for MCP-native agents)
+
+With `[mcp] enabled = true` (requires `pip install "mcp>=2" uvicorn`)
+the bridge exposes the satellite's tool catalog as an MCP server at
+`http://<host>:8766/mcp` (Streamable HTTP). Register it in your agent
+platform (e.g. Arkimede's MCP servers) and the agent calls the robot
+from inside its own loop — tool names use underscores (`robot_move`);
+results carry the satellite's `tool.result` JSON. One satellite at a
+time; with none connected, calls answer `no satellite connected`.

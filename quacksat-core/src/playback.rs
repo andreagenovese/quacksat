@@ -183,6 +183,32 @@ impl Player {
     }
 }
 
+/// A short synthesized duck-ish double chirp (16 kHz mono), the built-in
+/// wake acknowledgement for setups where robotd cannot play one (dev
+/// machines, no sound bank). Two ~120 ms bursts with a falling glide and
+/// a touch of harmonics.
+pub fn wake_ack_pcm() -> Vec<i16> {
+    let rate = crate::audio::PIPELINE_RATE as f32;
+    let burst = (0.12 * rate) as usize;
+    let gap = (0.06 * rate) as usize;
+    let mut pcm = Vec::with_capacity(2 * burst + gap);
+    for b in 0..2 {
+        for i in 0..burst {
+            let t = i as f32 / rate;
+            let progress = i as f32 / burst as f32;
+            let f = 520.0 - 140.0 * progress - b as f32 * 60.0;
+            let envelope = (progress * std::f32::consts::PI).sin();
+            let s = (2.0 * std::f32::consts::PI * f * t).sin()
+                + 0.5 * (4.0 * std::f32::consts::PI * f * t).sin();
+            pcm.push((s * envelope * 9000.0) as i16);
+        }
+        if b == 0 {
+            pcm.extend(std::iter::repeat_n(0i16, gap));
+        }
+    }
+    pcm
+}
+
 impl Drop for Player {
     fn drop(&mut self) {
         self.stop();

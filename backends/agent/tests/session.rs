@@ -139,9 +139,9 @@ fn full_conversation_flow() {
                     assert_eq!(bytes.len(), FRAME_SAMPLES * 2);
                     audio_frames += 1;
                     // After the burst, silence long enough for the VAD
-                    // hangover to close the utterance.
+                    // hangover (25 frames) to close the utterance.
                     if audio_frames == 12 {
-                        for _ in 0..20 {
+                        for _ in 0..30 {
                             frames_tx.send(quiet_frame()).unwrap();
                         }
                     }

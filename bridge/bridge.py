@@ -22,6 +22,7 @@ import io
 import json
 import logging
 import math
+import re
 import struct
 import sys
 import tomllib
@@ -46,7 +47,12 @@ DEFAULTS = {
     "stt": {"base_url": "http://localhost:9000/v1", "api_key": "", "model": "", "language": ""},
     "tts": {"base_url": "http://localhost:9100/v1", "api_key": "", "model": "piper", "voice": ""},
     "behavior": {"follow_up": False, "history_max_messages": 20},
+    "mcp": {"enabled": False, "bind": "0.0.0.0", "port": 8766},
 }
+
+# The MCP server (mcp_server.py) forwards tool calls to whichever
+# satellite is currently connected.
+REGISTRY = {"session": None}
 
 
 def load_config(path):
@@ -99,6 +105,31 @@ def http_multipart(url, fields, file_field, filename, file_bytes, api_key):
         request.add_header("Authorization", f"Bearer {api_key}")
     with urllib.request.urlopen(request, timeout=120) as response:
         return response.read()
+
+
+def speakable(text):
+    """Strip markdown, emoji, and symbols a TTS voice would read aloud.
+
+    The agent's prompt should already ask for plain spoken text; this is
+    the safety net for the asterisks and emoji that slip through anyway.
+    """
+    text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)  # code blocks
+    text = re.sub(r"`([^`]*)`", r"\1", text)                 # inline code
+    text = re.sub(r"\*\*|__|\*|_|~~|#+ ", "", text)          # md emphasis/headers
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)     # links -> label
+    text = re.sub(r"^\s*[-*•]\s+", " ", text, flags=re.MULTILINE)  # bullets
+    text = re.sub(                                           # emoji & symbols
+        "["
+        "\U0001f000-\U0001ffff"
+        "←-⇿"   # arrows
+        "⌀-➿"   # misc technical, dingbats
+        "⬀-⯿"
+        "️"
+        "]+",
+        " ",
+        text,
+    )
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def pcm_to_wav(pcm, rate, channels):
@@ -277,6 +308,9 @@ class Session:
             await self.send({"type": "listen.start"})
 
     async def speak(self, text):
+        text = speakable(text)
+        if not text:
+            return
         try:
             pcm, rate, channels = await self.services.synthesize(text)
         except Exception as e:  # noqa: BLE001 — a dead TTS must not kill the session
@@ -354,11 +388,33 @@ async def main():
                 log.warning("rejected connection: bad token")
                 return
         log.info("satellite connected: %s", ws.remote_address)
+        session = Session(ws, config, services)
+        REGISTRY["session"] = session
         try:
-            await Session(ws, config, services).handle()
+            await session.handle()
         except websockets.ConnectionClosed:
             pass
+        finally:
+            if REGISTRY["session"] is session:
+                REGISTRY["session"] = None
         log.info("satellite disconnected")
+
+    mcp_task = None
+    if config["mcp"]["enabled"]:
+        try:
+            import mcp_server
+
+            async def run_mcp():
+                try:
+                    await mcp_server.serve(REGISTRY, config["mcp"]["bind"], config["mcp"]["port"])
+                except Exception:
+                    log.exception("mcp server failed")
+
+            # Keep the reference: an unreferenced task can be collected.
+            mcp_task = asyncio.get_running_loop().create_task(run_mcp())
+        except ImportError as e:
+            log.warning("mcp server disabled (pip install mcp uvicorn): %s", e)
+    _ = mcp_task
 
     bind, port = config["server"]["bind"], config["server"]["port"]
     mode = "fake services" if args.fake else "configured services"
