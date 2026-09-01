@@ -3,7 +3,7 @@
 
 use std::io::Read;
 use std::process::{Child, ChildStdout, Command, Stdio};
-use std::sync::mpsc::SyncSender;
+use std::sync::mpsc::{SyncSender, TrySendError};
 
 use super::decimate::Decimator;
 use super::{FRAME_SAMPLES, HW_CHANNELS, HW_RATE};
@@ -57,6 +57,7 @@ fn spawn_command(program: &str, args: &[&str]) -> anyhow::Result<(Child, ChildSt
 /// means restart (a died arecord) or shutdown.
 pub fn pump(mut source: impl Read, tx: SyncSender<Vec<i16>>) -> anyhow::Result<()> {
     let mut decimator = Decimator::new();
+    let mut dropped: u64 = 0;
     let mut read_buf = [0u8; 8192];
     let mut pending: Vec<u8> = Vec::new();
     let mut frame: Vec<i16> = Vec::with_capacity(FRAME_SAMPLES);
@@ -81,8 +82,21 @@ pub fn pump(mut source: impl Read, tx: SyncSender<Vec<i16>>) -> anyhow::Result<(
             frame.push(sample);
             if frame.len() == FRAME_SAMPLES {
                 let full = std::mem::replace(&mut frame, Vec::with_capacity(FRAME_SAMPLES));
-                if tx.send(full).is_err() {
-                    return Ok(());
+                // Never block: backpressure would fill the capture child's
+                // pipe and wedge it (sox desyncs on CoreAudio overruns and
+                // stays deaf until restarted). A full channel means the
+                // consumer is busy playing or thinking — those frames were
+                // going to be discarded anyway; drop them here and keep
+                // the microphone healthy.
+                match tx.try_send(full) {
+                    Ok(()) => {}
+                    Err(TrySendError::Full(_)) => {
+                        dropped += 1;
+                        if dropped % 64 == 1 {
+                            tracing::debug!(dropped, "mic frames dropped (consumer busy)");
+                        }
+                    }
+                    Err(TrySendError::Disconnected(_)) => return Ok(()),
                 }
             }
         }
@@ -118,6 +132,17 @@ mod tests {
         // Settled samples must track the right channel, not the junk left.
         let settled = &frames[2][..];
         assert!(settled.iter().all(|&s| (s - 1000).abs() <= 2));
+    }
+
+    #[test]
+    fn full_channel_drops_frames_instead_of_blocking() {
+        // 4 s of audio into a 2-slot channel with no consumer: the pump
+        // must run to EOF (never block) and the two slots must be full.
+        let bytes = stereo_bytes(&vec![500i16; 4 * HW_RATE as usize]);
+        let (tx, rx) = sync_channel(2);
+        let result = pump(std::io::Cursor::new(bytes), tx);
+        assert!(result.is_err(), "EOF is reported after draining the input");
+        assert_eq!(rx.try_iter().count(), 2);
     }
 
     #[test]
