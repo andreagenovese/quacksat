@@ -113,6 +113,40 @@ between multiple ducks. The bridge remains the right shape for a home
 with an always-on server; `direct` is the right shape for everyone
 else. Not scheduled — recorded here as the designated third path.
 
+## Future: multi-satellite (one bridge, many ducks)
+
+The protocol already allows it: every duck opens its own WebSocket,
+announces itself in `session.start` (name included), and gets an
+independent session — its own audio buffer, turns, and history. What
+the reference bridge still lacks is the plumbing where one duck must be
+*chosen*; the design for it, when a second duck exists:
+
+1. **Identity**: the session registry becomes a `name → session` map
+   (the name already travels in `session.start`; it just needs to be
+   configurable per duck).
+2. **Addressed tools**: robot tools gain a `duck` argument, or the
+   bridge exposes a per-duck catalog and the agent picks;
+   `robot_state` with no argument answers for all of them.
+3. **Wake arbitration** (the interesting one): two ducks in adjacent
+   rooms both hear the wake word. As Home Assistant does with its
+   satellites, the bridge collects `wake` events in a short window
+   (~200 ms), the **highest score wins** (the duck closest to the
+   speaker), and the others get `listen.stop`. The `wake` event
+   carries its score precisely for this.
+4. **Whole-home memory**: the conversation belongs to the house, not
+   to a duck — start talking in the kitchen, continue in the living
+   room. With an agent platform (Arkimede) this is nearly free: memory
+   already lives in the agent; the bridge only routes the reply to the
+   duck that captured the last utterance.
+
+This is also *why* multi-duck demands the server-side bridge: wake
+arbitration and shared memory need one point that sees every duck at
+once — impossible with an on-board bridge or the `direct` backend.
+Upstream's "chorale" (ducks singing in harmony) is the same instinct;
+the quacksat version is distributed voice presence. Registry map and
+wake arbitration are an afternoon of bridge work, zero satellite or
+protocol changes.
+
 ## Out of scope (deliberate)
 
 - Barge-in (needs AEC — ADR 0003 defers it).

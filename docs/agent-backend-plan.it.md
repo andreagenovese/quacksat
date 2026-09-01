@@ -121,6 +121,42 @@ casa con un server sempre acceso; `direct` è la forma giusta per tutti
 gli altri. Non pianificato — registrato qui come terza strada
 designata.
 
+## Futuro: multi-satellite (un bridge, più anatre)
+
+Il protocollo già lo permette: ogni anatra apre il suo WebSocket, si
+presenta in `session.start` (nome incluso) e ottiene una sessione
+indipendente — buffer audio, turni e memoria propri. Ciò che manca al
+bridge di riferimento è la parte in cui *una* anatra va scelta; il
+design, per quando esisterà una seconda anatra:
+
+1. **Identità**: il registro delle sessioni diventa una mappa
+   `nome → sessione` (il nome viaggia già in `session.start`; basta
+   renderlo configurabile per-anatra).
+2. **Tool con indirizzo**: i tool robot guadagnano un argomento
+   `duck`, oppure il bridge espone il catalogo per-anatra e l'agente
+   sceglie; `robot_state` senza argomento risponde per tutte.
+3. **Arbitraggio del wake** (il punto interessante): due anatre in
+   stanze adiacenti sentono entrambe la wake word. Come fa Home
+   Assistant coi suoi satelliti, il bridge raccoglie gli eventi `wake`
+   in una piccola finestra (~200 ms), **vince lo score più alto**
+   (l'anatra più vicina a chi parla), e le altre ricevono
+   `listen.stop`. L'evento `wake` porta lo score esattamente per
+   questo.
+4. **Memoria di casa**: la conversazione appartiene alla casa, non a
+   un'anatra — inizi a parlare in cucina, continui in salotto. Con una
+   piattaforma agente (Arkimede) è quasi gratis: la memoria vive già
+   nell'agente; il bridge deve solo instradare la risposta all'anatra
+   che ha catturato l'ultima frase.
+
+È anche il *perché* il multi-anatra pretende il bridge lato server:
+arbitraggio del wake e memoria condivisa richiedono un punto che veda
+tutte le anatre insieme — impossibile con un bridge a bordo o col
+backend `direct`. Il "chorale" di upstream (anatre che cantano in
+armonia) è lo stesso istinto; la versione quacksat è la presenza
+vocale distribuita. Mappa nel registro e arbitraggio del wake sono un
+pomeriggio di lavoro sul bridge, zero modifiche a satellite e
+protocollo.
+
 ## Fuori scope (deliberato)
 
 - Barge-in (serve l'AEC — l'ADR 0003 lo rimanda).
