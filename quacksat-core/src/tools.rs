@@ -13,6 +13,9 @@ use serde_json::{Value, json};
 const MAX_MOVE_DURATION_S: f64 = 3.0;
 const MAX_SPEED_M_S: f64 = 0.2;
 const MAX_YAW_RAD_S: f64 = 1.0;
+const MAX_LOOK_XY_M: f64 = 3.0;
+const MIN_LOOK_Z_M: f64 = -0.2;
+const MAX_LOOK_Z_M: f64 = 2.0;
 const MAX_HEAD_PITCH_RAD: f64 = 0.6;
 const MAX_HEAD_YAW_RAD: f64 = 1.2;
 const MAX_HEAD_ROLL_RAD: f64 = 0.5;
@@ -25,7 +28,9 @@ pub fn catalog() -> Value {
     json!([
         {
             "name": "robot.sound",
-            "description": "Play an expressive duck sound. Tags: alarm, greet, inquire, peck, chirp, coo.",
+            "description": "Play an expressive duck sound. Use for reactions or when asked to \
+    quack or make a sound. Tags: alarm (loud alert), greet (hello), inquire (questioning), \
+    peck, chirp (short acknowledgement), coo (affectionate).",
             "parameters": {
                 "type": "object",
                 "properties": {"tag": {"type": "string", "enum": ["alarm", "greet", "inquire", "peck", "chirp", "coo"]}},
@@ -33,20 +38,42 @@ pub fn catalog() -> Value {
             }
         },
         {
-            "name": "robot.head",
-            "description": "Point the duck's head. Angles in radians, clamped satellite-side.",
+            "name": "robot.look",
+            "description": "Aim the duck's gaze at a point in space. Use when asked to look at \
+    something or somewhere. Coordinates in meters from the duck's chest: x forward, y left, \
+    z up (the floor is about 0.12 m below; a standing person's face is around z=1.5 at their \
+    distance). The gaze holds until changed. Example: look at something on the floor one \
+    meter ahead: x=1.0, z=-0.1.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "pitch": {"type": "number", "description": "up/down, + looks down"},
-                    "yaw": {"type": "number", "description": "left/right, + looks left"},
-                    "roll": {"type": "number", "description": "head tilt"}
+                    "x": {"type": "number", "description": "meters forward of the duck"},
+                    "y": {"type": "number", "description": "meters to the duck's left (negative = right)"},
+                    "z": {"type": "number", "description": "meters above the duck's chest (floor is -0.12)"}
+                },
+                "required": ["x"]
+            }
+        },
+        {
+            "name": "robot.head",
+            "description": "Strike an expressive head pose (for looking AT something use \
+    robot.look instead): roll tilts the head sideways like a curious dog, yaw turns it, \
+    pitch nods it. Angles in radians, clamped; omitted angles return to center. The pose \
+    holds until the next call; call with no arguments to re-center.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pitch": {"type": "number", "description": "nod up/down, about -0.6 to 0.6"},
+                    "yaw": {"type": "number", "description": "turn left/right, about -1.2 to 1.2, + is left"},
+                    "roll": {"type": "number", "description": "sideways tilt, about -0.5 to 0.5"}
                 }
             }
         },
         {
             "name": "robot.skill",
-            "description": "Run a one-shot skill.",
+            "description": "Run a one-shot skill; it takes a few seconds. ground_pick pecks at \
+    the ground, kick_left/kick_right kick, sit_toggle sits down or stands back up (it \
+    toggles), roulade does a somersault.",
             "parameters": {
                 "type": "object",
                 "properties": {"name": {"type": "string", "enum": ["ground_pick", "kick_left", "kick_right", "sit_toggle", "roulade"]}},
@@ -55,13 +82,17 @@ pub fn catalog() -> Value {
         },
         {
             "name": "robot.move",
-            "description": "Walk for a bounded time, then stop automatically. Speeds are clamped; max 3 seconds per call — call again to continue.",
+            "description": "Walk or turn for a bounded time, then stop automatically. Use when \
+    asked to move, approach, back away, or turn. Distance is speed times duration: vx=0.15 \
+    with duration_s=3 walks about 45 cm forward; vyaw=0.8 with duration_s=2 turns about 90 \
+    degrees left. Typical walking speed is 0.1-0.15 m/s; values are clamped (0.2 m/s, 1.0 \
+    rad/s, 3 s max). For longer distances call repeatedly, checking robot.state in between.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "vx": {"type": "number", "description": "m/s forward (+) / backward (-)"},
-                    "vy": {"type": "number", "description": "m/s left (+) / right (-)"},
-                    "vyaw": {"type": "number", "description": "rad/s turn, + counterclockwise"},
+                    "vy": {"type": "number", "description": "m/s sidestep left (+) / right (-)"},
+                    "vyaw": {"type": "number", "description": "rad/s turn, + is left/counterclockwise"},
                     "duration_s": {"type": "number", "minimum": 0.1, "maximum": MAX_MOVE_DURATION_S}
                 },
                 "required": ["duration_s"]
@@ -69,12 +100,14 @@ pub fn catalog() -> Value {
         },
         {
             "name": "robot.state",
-            "description": "Current robot status: health, battery, mode.",
+            "description": "Current robot status: health, battery, mode. Use it before and \
+    after moving, or when asked how the robot is doing.",
             "parameters": {"type": "object", "properties": {}}
         },
         {
             "name": "robot.get_frame",
-            "description": "Grab a camera frame. Not supported yet on this robot.",
+            "description": "Grab a camera frame. Not supported yet on this robot — if it \
+    fails, tell the user you cannot see yet.",
             "parameters": {"type": "object", "properties": {}}
         }
     ])
@@ -97,6 +130,25 @@ pub fn execute(name: &str, args: &Value, control: &mut Option<Control>) -> Resul
                 &proto::Call::RobotSound(proto::SoundParams { tag, hold: None }),
             )?;
             intent_outcome(result)
+        }
+        "robot.look" => {
+            let params = proto::LookParams {
+                x: number(args, "x").clamp(-MAX_LOOK_XY_M, MAX_LOOK_XY_M),
+                y: number(args, "y").clamp(-MAX_LOOK_XY_M, MAX_LOOK_XY_M),
+                z: number(args, "z").clamp(MIN_LOOK_Z_M, MAX_LOOK_Z_M),
+                neck_pitch: 0.0,
+            };
+            let response = request(control, &proto::Call::RobotLook(params))?;
+            if let Some(error) = &response.error {
+                return Err(format!("robot refused look: {error}"));
+            }
+            let clamped = response
+                .result_as::<proto::LookResult>()
+                .map(|r| r.clamped)
+                .unwrap_or(false);
+            // `clamped` tells the agent the point is beyond the head's
+            // reach — the gaze is the closest approximation, not a lock.
+            Ok(json!({"done": true, "clamped": clamped}))
         }
         "robot.head" => {
             let params = proto::HeadParams {
@@ -277,6 +329,7 @@ mod tests {
             names,
             [
                 "robot.sound",
+                "robot.look",
                 "robot.head",
                 "robot.skill",
                 "robot.move",
@@ -289,7 +342,7 @@ mod tests {
         // "robot unreachable" or "unsupported", never "unknown tool".
         let mut control = None;
         for name in names {
-            let args = json!({"tag": "chirp", "name": "sit_toggle", "duration_s": 0.1});
+            let args = json!({"tag": "chirp", "name": "sit_toggle", "duration_s": 0.1, "x": 1.0});
             let err = execute(name, &args, &mut control)
                 .err()
                 .into_iter()

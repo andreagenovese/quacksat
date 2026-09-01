@@ -187,7 +187,8 @@ lato satellite.
 | Tool | Argomenti | Effetto |
 |---|---|---|
 | `robot.sound` | `{tag}` ∈ insieme SoundTag di robotd | verso espressivo dell'anatra via `robot.sound` |
-| `robot.head` | `{pitch?, yaw?, roll?}` rad, con clamp | intento di posa della testa |
+| `robot.look` | `{x, y?, z?}` metri, trunk frame, con clamp | punta lo sguardo su un punto via l'IK di `robot.look` di robotd; il risultato riporta `clamped` se il punto è fuori portata |
+| `robot.head` | `{pitch?, yaw?, roll?}` rad, con clamp | posa espressiva della testa (per guardare qualcosa c'è `robot.look`); gli angoli omessi tornano al centro |
 | `robot.skill` | `{name}` ∈ {ground_pick, kick_left, kick_right, sit_toggle, roulade} | skill one-shot via `robot.do` |
 | `robot.move` | `{vx?, vy?, vyaw?, duration_s}` (duration ≤ 3.0 s) | camminata a tempo: intenti pompati a ≥20 Hz per la durata, poi silenzio — il deadman resta la rete di sicurezza |
 | `robot.state` | `{}` | sintesi di `robot.state`/`robot.health`: posa, caduto, batteria, modalità |

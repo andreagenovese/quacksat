@@ -177,7 +177,8 @@ Declared by the satellite; all arguments clamped satellite-side.
 | Tool | Args | Effect |
 |---|---|---|
 | `robot.sound` | `{tag}` ∈ robotd's SoundTag set | expressive duck cue via `robot.sound` |
-| `robot.head` | `{pitch?, yaw?, roll?}` rad, clamped | head pose intent |
+| `robot.look` | `{x, y?, z?}` meters, trunk frame, clamped | aim the gaze at a point via robotd's `robot.look` IK; result reports `clamped` when the point is out of reach |
+| `robot.head` | `{pitch?, yaw?, roll?}` rad, clamped | expressive head pose (looking at things is `robot.look`'s job); omitted angles re-center |
 | `robot.skill` | `{name}` ∈ {ground_pick, kick_left, kick_right, sit_toggle, roulade} | one-shot skill via `robot.do` |
 | `robot.move` | `{vx?, vy?, vyaw?, duration_s}` (duration ≤ 3.0 s) | timed walk: intents pumped ≥20 Hz for the duration, then silence — the deadman remains the backstop |
 | `robot.state` | `{}` | condensed `robot.state`/`robot.health`: pose, fallen, battery, mode |
