@@ -30,7 +30,7 @@ the full protocol loop with zero dependencies.
 - **Generic provider with tool calling** (`tool_calling = true`): the
   bridge runs the loop; the satellite's tool catalog is declared as
   OpenAI tools and `tool_calls` are forwarded as `tool.call`.
-- **[Arkimede](https://github.com/andreagenovese/yesSir)**: LLM/STT/TTS all on `http://<server>:3000/api/openai/v1`
+- **[Arkimede](https://arkimede.ai/)**: LLM/STT/TTS all on `http://<server>:3000/api/openai/v1`
   with an `ak_` key; set `tool_calling = false` (its shim keeps tools
   internal — robot tools reach it via the MCP server below).
 - **Bare LLM**: works too; voice-only.

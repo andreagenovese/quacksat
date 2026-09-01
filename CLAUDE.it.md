@@ -23,7 +23,7 @@ running on the Pollen Robotics Microduck".
    minimi), manda solo intenti/RPC, non tocca mai il bus. Se tace, il deadman
    protegge il robot.
 4. Protocollo `agent` neutro (audio streaming + eventi + tool call/result); il
-   bridge nel repo è un riferimento minimale; l'integrazione con [Arkimede](https://github.com/andreagenovese/yesSir) vive
+   bridge nel repo è un riferimento minimale; l'integrazione con [Arkimede](https://arkimede.ai/) vive
    in Arkimede.
 
 ## Struttura

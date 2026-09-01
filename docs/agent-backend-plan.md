@@ -50,7 +50,7 @@ details. Italian copy: `agent-backend-plan.it.md`.
 4. **The MCP server is the bridge's tool core, not an add-on.** One MCP
    server (HTTP/SSE) exposes the satellite's declared tools; every
    consumer goes through it:
-   - **Profile 1 — MCP-native agent** ([Arkimede](https://github.com/andreagenovese/yesSir) today): the agent
+   - **Profile 1 — MCP-native agent** ([Arkimede](https://arkimede.ai/) today): the agent
      registers the bridge's MCP server and calls robot tools inside its
      own loop. No Arkimede changes needed — its OpenAI shim never sees
      the tool calls (they take the MCP side door).

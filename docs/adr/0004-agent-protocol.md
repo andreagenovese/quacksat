@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-08-31
 - Inputs: ADR 0002 (interchangeable backends), ADR 0003 (half-duplex
-  audio), `docs/agent-backend-plan.md`, survey of the [Arkimede](https://github.com/andreagenovese/yesSir) platform
+  audio), `docs/agent-backend-plan.md`, survey of the [Arkimede](https://arkimede.ai/) platform
 
 ## Context
 

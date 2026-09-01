@@ -55,7 +55,7 @@ design della strada B; il contratto wire vive in ADR 0004 +
 4. **Il server MCP è il cuore dei tool del bridge, non un'aggiunta.**
    Un unico server MCP (HTTP/SSE) espone i tool dichiarati dal
    satellite; ogni consumatore ci passa:
-   - **Profilo 1 — agente MCP-native** (l'[Arkimede](https://github.com/andreagenovese/yesSir) di oggi): l'agente
+   - **Profilo 1 — agente MCP-native** (l'[Arkimede](https://arkimede.ai/) di oggi): l'agente
      registra il server MCP del bridge e chiama i tool robot dentro il
      proprio loop. Nessuna modifica ad Arkimede — il suo shim OpenAI
      non vede mai le tool call (prendono la porta laterale MCP).

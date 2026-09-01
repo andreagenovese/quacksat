@@ -2,7 +2,7 @@
 
 Status: v1, implemented by `backends/agent`, `backends/direct`, and the
 reference bridge in `bridge/`. Italian copy: `agent-protocol.it.md`.
-Audience: implementers of bridges/agents ([Arkimede](https://github.com/andreagenovese/yesSir) or anything else).
+Audience: implementers of bridges/agents ([Arkimede](https://arkimede.ai/) or anything else).
 
 ## Transport
 
