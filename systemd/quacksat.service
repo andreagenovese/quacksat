@@ -2,8 +2,10 @@
 Description=quacksat voice satellite
 # After, not Requires/BindsTo: a down robotd must not keep the satellite from
 # starting and retrying (ADR 0003). aic3104-init sets the codec mixer at boot.
-After=robotd.service aic3104-init.service local-fs.target network-online.target
-Wants=robotd.service network-online.target
+After=robotd.service quack-navd.service aic3104-init.service local-fs.target network-online.target
+# Wants, not Requires: without the navigation daemon the satellite is a
+# voice assistant that cannot be sent anywhere, and says so (2026-09-22).
+Wants=robotd.service quack-navd.service network-online.target
 
 [Service]
 Type=exec
@@ -21,6 +23,16 @@ Group=quacksat
 SupplementaryGroups=robot audio
 RuntimeDirectory=quacksat
 StateDirectory=quacksat
+
+# Resource fence: the satellite must never cost robotd its 50 Hz loop.
+# Nice matches robotd's own mapping worker (the loop wins every contest
+# for a core); CPUWeight halves our share under contention; the memory
+# caps are a first guess for a 1 GB board (wake-word runtime plus audio
+# buffers should sit well under 128 MB) — to be measured on hardware.
+Nice=10
+CPUWeight=50
+MemoryHigh=192M
+MemoryMax=256M
 
 # Hardening block copied from padd.service; AF_INET/AF_INET6 added for the
 # network backends. No MemoryDenyWriteExecute: the wake-word ML runtime may

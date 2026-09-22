@@ -18,9 +18,8 @@ use std::sync::mpsc;
 use duck_ipc_proto as proto;
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
-use quacksat_core::robotd::Control;
 use quacksat_core::thinking::ThinkingPose;
-use quacksat_core::tools;
+use quacksat_core::tools::{self, Robot};
 use quacksat_core::vad::{Vad, VadEvent};
 use quacksat_core::wake;
 use serde_json::{Value, json};
@@ -31,15 +30,8 @@ const NO_SPEECH_FRAMES: u32 = 187;
 const MAX_UTTERANCE_FRAMES: u32 = 469;
 
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
-    let control: mcp::SharedControl = std::sync::Arc::new(std::sync::Mutex::new(
-        match Control::connect(&config.robotd_socket) {
-            Ok(control) => Some(control),
-            Err(e) => {
-                tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-                None
-            }
-        },
-    ));
+    let control: mcp::SharedRobot =
+        std::sync::Arc::new(std::sync::Mutex::new(Robot::connect(config)));
     if config.direct.mcp.enabled {
         anyhow::ensure!(
             !config.direct.mcp.token.is_empty(),
@@ -56,12 +48,18 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
         let token = config.direct.mcp.token.clone();
         std::thread::spawn(move || mcp::serve(listener, mcp_control, token));
     }
+    // Waking up in a house the duck already knows is the navigation
+    // daemon's business since the split (2026-09-22): quack-navd runs
+    // its own homecoming at startup.
     let mut player = match &config.audio.playback_program {
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),
     };
     let mut detector = wake::from_config(&config.wake)?;
-    let tools_catalog = openai::openai_tools(&tools::catalog());
+    let tools_catalog = {
+        let robot = control.lock().expect("robot poisoned");
+        openai::openai_tools(&tools::catalog(robot.nav.as_ref()))
+    };
     let mut history: Vec<Value> = Vec::new();
 
     tracing::info!(
@@ -72,10 +70,38 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
     );
 
     loop {
-        // Idle: feed the wake detector until it fires.
+        // Idle: feed the wake detector until it fires — unless the duck,
+        // mapping on its own, has reached a place it has no name for and
+        // wants to ask.
         let Ok(frame) = frames.recv() else {
             anyhow::bail!("capture channel closed");
         };
+        // The duck asking "where am I?" while it maps: the daemon
+        // raises it, the satellite speaks it (the split of 2026-09-22).
+        if let Some(question) = mcp::lock(&control).nav.as_mut().and_then(|nav| nav.take_question()) {
+            let phrase = question.phrase.clone();
+            tracing::info!(pose = ?question.pose, %phrase, "asking where we are");
+            speak(config, &mut player, &phrase);
+            // The turn is the user's answer to a question the duck asked:
+            // put the question on the record so the model reads the answer
+            // as a name for this spot and remembers it.
+            history.push(json!({"role": "assistant", "content": phrase}));
+            while frames.try_recv().is_ok() {}
+            match record_utterance(&frames, &mut player)? {
+                Some(utterance) => {
+                    match run_turn_posed(config, &utterance, &mut history, &tools_catalog, &control)
+                    {
+                        Ok(Some(reply)) => speak(config, &mut player, &reply),
+                        Ok(None) => tracing::info!("no answer to the question"),
+                        Err(e) => tracing::warn!(error = %e, "turn failed"),
+                    }
+                }
+                None => tracing::info!("nobody answered where we are"),
+            }
+            while frames.try_recv().is_ok() {}
+            detector.reset();
+            continue;
+        }
         if !detector.feed(&frame) {
             continue;
         }
@@ -159,7 +185,7 @@ fn run_turn_posed(
     utterance: &[i16],
     history: &mut Vec<Value>,
     tools_catalog: &Value,
-    control: &mcp::SharedControl,
+    control: &mcp::SharedRobot,
 ) -> anyhow::Result<Option<String>> {
     let stop = AtomicBool::new(false);
     let acting = AtomicBool::new(false);
@@ -173,12 +199,12 @@ fn run_turn_posed(
                 }
                 {
                     let mut guard = mcp::lock(control);
-                    pose.tick(&mut guard);
+                    pose.tick(&mut guard.control);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
             let mut guard = mcp::lock(control);
-            pose.end(&mut guard);
+            pose.end(&mut guard.control);
         });
         let result = run_turn(config, utterance, history, tools_catalog, control, &acting);
         stop.store(true, Ordering::Relaxed);
@@ -191,7 +217,7 @@ fn run_turn(
     utterance: &[i16],
     history: &mut Vec<Value>,
     tools_catalog: &Value,
-    control: &mcp::SharedControl,
+    control: &mcp::SharedRobot,
     acting: &AtomicBool,
 ) -> anyhow::Result<Option<String>> {
     let wav = openai::pcm_to_wav(utterance, quacksat_core::audio::PIPELINE_RATE);
@@ -281,9 +307,9 @@ fn speak(config: &Config, player: &mut Player, text: &str) {
     tracing::info!("tts played");
 }
 
-fn chirp(control: &mcp::SharedControl) -> bool {
+fn chirp(control: &mcp::SharedRobot) -> bool {
     let mut guard = mcp::lock(control);
-    let control = &mut *guard;
+    let control = &mut guard.control;
     let Some(c) = control else { return false };
     let call = proto::Call::RobotSound(proto::SoundParams {
         tag: proto::SoundTag::Chirp,
@@ -305,10 +331,10 @@ fn chirp(control: &mcp::SharedControl) -> bool {
 
 /// The give-up sound: robotd's low peck tock, or the local synthesized
 /// sigh when the robot cannot play one.
-fn sad_ack(control: &mcp::SharedControl, player: &mut Player) {
+fn sad_ack(control: &mcp::SharedRobot, player: &mut Player) {
     let played = {
         let mut guard = mcp::lock(control);
-        quacksat_core::thinking::sad_tock(&mut guard)
+        quacksat_core::thinking::sad_tock(&mut guard.control)
     };
     if played {
         return;

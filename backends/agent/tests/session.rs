@@ -10,6 +10,7 @@ use quacksat_backend_agent::session::{Deps, run_session};
 use quacksat_core::audio::FRAME_SAMPLES;
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
+use quacksat_core::tools::Robot;
 use quacksat_core::wake;
 use serde_json::{Value, json};
 use tungstenite::Message;
@@ -33,6 +34,11 @@ fn fake_aplay(dir: &std::path::Path) -> String {
     let mut perms = std::fs::metadata(&script).unwrap().permissions();
     perms.set_mode(0o755);
     std::fs::set_permissions(&script, perms).unwrap();
+    // Run it once here: macOS inspects a freshly written executable on
+    // its first exec, which can take longer than the player's settle
+    // window — the ack then looked "still playing" and gated every test
+    // frame away (a 1-in-3 failure until this line).
+    std::process::Command::new(&script).status().unwrap();
     script.to_str().unwrap().to_string()
 }
 
@@ -53,7 +59,7 @@ fn full_conversation_flow() {
             let (ws, _) = tungstenite::connect(format!("ws://127.0.0.1:{port}")).expect("connect");
             let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program("ignored", &aplay);
-            let mut control = None;
+            let mut robot = Robot::detached();
             run_session(
                 ws,
                 &mut Deps {
@@ -61,7 +67,7 @@ fn full_conversation_flow() {
                     frames: &frames_rx,
                     detector: detector.as_mut(),
                     player: &mut player,
-                    control: &mut control,
+                    robot: &mut robot,
                 },
             )
         });
@@ -232,7 +238,7 @@ fn reply_timeout_ends_with_sad_ack() {
             let (ws, _) = tungstenite::connect(format!("ws://127.0.0.1:{port}")).expect("connect");
             let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program("ignored", &aplay);
-            let mut control = None;
+            let mut robot = Robot::detached();
             run_session(
                 ws,
                 &mut Deps {
@@ -240,7 +246,7 @@ fn reply_timeout_ends_with_sad_ack() {
                     frames: &frames_rx,
                     detector: detector.as_mut(),
                     player: &mut player,
-                    control: &mut control,
+                    robot: &mut robot,
                 },
             )
         });

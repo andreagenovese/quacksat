@@ -11,20 +11,15 @@ use std::sync::mpsc;
 
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
-use quacksat_core::robotd::{Control, RECONNECT_DELAY};
+use quacksat_core::robotd::RECONNECT_DELAY;
+use quacksat_core::tools::Robot;
 use quacksat_core::wake;
 use tungstenite::client::IntoClientRequest;
 
 /// Run the backend forever: connect, run a session, reconnect on loss
 /// with a fixed backoff (sessions are stateless on the wire).
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
-    let mut control = match Control::connect(&config.robotd_socket) {
-        Ok(control) => Some(control),
-        Err(e) => {
-            tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-            None
-        }
-    };
+    let mut robot = Robot::connect(config);
     let mut player = match &config.audio.playback_program {
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),
@@ -40,7 +35,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
                     frames: &frames,
                     detector: detector.as_mut(),
                     player: &mut player,
-                    control: &mut control,
+                    robot: &mut robot,
                 };
                 match session::run_session(ws, &mut deps) {
                     Ok(()) => tracing::info!("bridge disconnected"),

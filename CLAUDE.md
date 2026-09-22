@@ -34,28 +34,6 @@ running on the Pollen Robotics Microduck".
    bridge in the repo is a minimal reference; the [Arkimede](https://arkimede.ai/) integration lives
    in Arkimede.
 
-## Structure
-
-```
-quacksat/
-├── CLAUDE.md
-├── LICENSE (Apache-2.0) · NOTICE · README.md (with the non-affiliation disclaimer)
-├── docs/
-│   ├── study/      ← the study documents (see below)
-│   └── adr/        ← 0001-separate-repo, 0002-interchangeable-backends, ...
-├── quacksat/       ← the binary: config, capture, backend dispatch
-├── quacksat-core/  ← mic, wake word, VAD, speaker, robot tools → robotd
-├── backends/wyoming/ · backends/agent/ · backends/direct/
-├── bridge/         ← server-side reference for path B
-├── systemd/        ← quacksat.service
-└── scripts/        ← deploy to the Radxa Zero 3 / the duck
-```
-
-Study documents in `docs/study/` (each with an `.it` copy):
-`microduck-architecture.md`, `microduck-flowchart.mermaid`,
-`robotd-analysis.md`, `robotd-dataflow.mermaid`,
-`quacksat-ha-vs-agent.md`, `quacksat-flows-comparison.mermaid`.
-
 ## Known technical constraints (from robotd-design.md and architecture.md)
 
 - Board: Rockchip RK3566, 1 GB RAM, Armbian, systemd. Rust only in the Pollen
@@ -97,8 +75,10 @@ Next:
    RK3566).
 2. Optional, in the Arkimede repo: phase 2 (native `/voice` gateway,
    tool passthrough on the OpenAI shim) — briefs live there.
-3. Later, per `docs/todo-map.md`: the mapping/localization track
-   (get_frame via a mediad upstream PR, then `where_am_i`/`go_to`).
+3. The mapping track (the map, the places, the journeys) grew up and
+   moved out on 2026-09-22: it is `quack-navd` in the quacknav repo
+   (ADR 0006), and the satellite reaches it over `[nav] socket`. What
+   is left here for it is the lane and the splice.
 
 ## Private context
 

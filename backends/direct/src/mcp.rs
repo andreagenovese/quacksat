@@ -17,28 +17,28 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-use quacksat_core::robotd::Control;
-use quacksat_core::tools;
+use quacksat_core::tools::{self, Robot};
 use serde_json::{Value, json};
 
-pub type SharedControl = Arc<Mutex<Option<Control>>>;
+/// The robot (every lane) shared between the voice turn and MCP calls.
+pub type SharedRobot = Arc<Mutex<Robot>>;
 
 /// Poison-tolerant lock: a panicked holder must not brick the robot path.
-pub fn lock(control: &SharedControl) -> std::sync::MutexGuard<'_, Option<Control>> {
-    control
+pub fn lock(robot: &SharedRobot) -> std::sync::MutexGuard<'_, Robot> {
+    robot
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Accept loop; run it on its own thread. One thread per connection —
 /// MCP traffic is a trickle, not a flood.
-pub fn serve(listener: TcpListener, control: SharedControl, token: String) {
+pub fn serve(listener: TcpListener, robot: SharedRobot, token: String) {
     for stream in listener.incoming() {
         let Ok(stream) = stream else { continue };
-        let control = control.clone();
+        let robot = robot.clone();
         let token = token.clone();
         std::thread::spawn(move || {
-            if let Err(e) = handle_connection(stream, &control, &token) {
+            if let Err(e) = handle_connection(stream, &robot, &token) {
                 tracing::debug!(error = %e, "mcp connection ended");
             }
         });
@@ -47,7 +47,7 @@ pub fn serve(listener: TcpListener, control: SharedControl, token: String) {
 
 fn handle_connection(
     mut stream: TcpStream,
-    control: &SharedControl,
+    robot: &SharedRobot,
     token: &str,
 ) -> anyhow::Result<()> {
     while let Some(request) = read_http_request(&mut stream)? {
@@ -91,7 +91,7 @@ fn handle_connection(
         };
         let method = message.get("method").and_then(Value::as_str).unwrap_or("");
         let params = message.get("params").cloned().unwrap_or_else(|| json!({}));
-        let reply = match dispatch(method, &params, control) {
+        let reply = match dispatch(method, &params, robot) {
             Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
             Err(error) => json!({"jsonrpc": "2.0", "id": id,
                                  "error": {"code": -32601, "message": error}}),
@@ -101,7 +101,7 @@ fn handle_connection(
     Ok(())
 }
 
-fn dispatch(method: &str, params: &Value, control: &SharedControl) -> Result<Value, String> {
+fn dispatch(method: &str, params: &Value, robot: &SharedRobot) -> Result<Value, String> {
     match method {
         "initialize" => {
             let requested = params
@@ -116,7 +116,7 @@ fn dispatch(method: &str, params: &Value, control: &SharedControl) -> Result<Val
         }
         "ping" => Ok(json!({})),
         "tools/list" => {
-            let tools: Vec<Value> = tools::catalog()
+            let tools: Vec<Value> = tools::catalog(lock(robot).nav.as_ref())
                 .as_array()
                 .into_iter()
                 .flatten()
@@ -140,7 +140,7 @@ fn dispatch(method: &str, params: &Value, control: &SharedControl) -> Result<Val
                 .cloned()
                 .unwrap_or_else(|| json!({}));
             tracing::info!(tool = %wire_name, %arguments, "mcp tool call");
-            let mut guard = lock(control);
+            let mut guard = lock(robot);
             let payload = match tools::execute(&wire_name, &arguments, &mut guard) {
                 Ok(data) => json!({"ok": true, "data": data}),
                 Err(error) => {

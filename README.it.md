@@ -70,6 +70,27 @@ robot è in attesa — dicembre 2026.
 - `direct`: il satellite autosufficiente — chiama da sé i tre endpoint
   in dialetto OpenAI, senza bridge, e può servire il proprio endpoint
   MCP così gli agenti guidano il robot direttamente.
+- La navigazione, dal 2026-09-22, è un demone a sé (ADR 0006):
+  `quack-navd`, nel repo [quacknav](https://github.com/andreagenovese/quacknav),
+  possiede il client della mappa, la guardia del dirupo, il planner, il
+  registro dei posti, l'esploratore e l'homecoming, e risponde per loro
+  su `/run/quack-nav.sock` (NDJSON JSON-RPC, il filo di robotd). quacksat
+  sonda quel socket all'avvio: se un demone risponde, i suoi tool vengono
+  annunciati accanto a quelli del satellite; se non risponde nessuno, la
+  papera ascolta e risponde ma non può essere mandata da nessuna parte, e
+  lo dice. I due repo non condividono codice — solo il protocollo di
+  robotd — quindi nessuno dei due va clonato per installare l'altro. Cosa
+  sa fare la navigazione, e tre settimane di misure sul gemello MuJoCo,
+  sono documentati in quel repo.
+- Luoghi, mappatura e viaggi: l'anatra impara il nome del posto in cui si
+  trova ("questa è la cucina"), risponde a "dove sei", mappa una casa da
+  sola chiedendo "qui dove siamo?" nelle zone senza nome, e cammina fino
+  a un posto che conosce — tutto attraverso i tool del demone
+  (`robot.where_am_i`, `robot.remember_place`, `robot.map_status`,
+  `robot.map_step`, `robot.map_explore`, `robot.go_to`, la libreria
+  delle mappe), innestati nel catalogo che l'agente vede. I nomi sono
+  legati a coordinate della mappa, mai riconosciuti a vista; un reset
+  della mappa li rende stantii finché non vengono reinsegnati.
 
 ## Come iniziare
 

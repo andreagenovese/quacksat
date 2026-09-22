@@ -1,4 +1,9 @@
 //! robotd client on the padd model (docs/study/microduck-client-pattern.md):
+//!
+//! The navigation has a copy of this in its own repo (ADR 0006): the two
+//! programs share robotd's protocol, pinned by `duck-ipc-proto`, not a
+//! library. Three hundred lines twice is cheaper than a repo that has to
+//! be cloned to install a voice assistant.
 //! NDJSON JSON-RPC 2.0 over `/run/robotd.sock`, every message built from
 //! `duck-ipc-proto` types, one connection per lane. quacksat holds session
 //! state, so unlike padd it reconnects in-process instead of exiting.
@@ -63,7 +68,11 @@ impl Control {
         let id = proto::Id::Number(self.next_id);
         self.next_id += 1;
         write_line(&mut self.writer, &proto::Request::call(id.clone(), call))?;
+        self.answer(id)
+    }
 
+    /// Read until the answer to `id` arrives.
+    fn answer(&mut self, id: proto::Id) -> anyhow::Result<proto::Response> {
         loop {
             let mut line = String::new();
             if self.reader.read_line(&mut line)? == 0 {

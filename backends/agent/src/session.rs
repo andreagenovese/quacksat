@@ -19,14 +19,16 @@ use serde_json::{Value, json};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::{Message, WebSocket};
 
-use quacksat_core::tools;
+use quacksat_core::tools::{self, Robot};
 
 pub struct Deps<'a> {
     pub config: &'a Config,
     pub frames: &'a mpsc::Receiver<Vec<i16>>,
     pub detector: &'a mut dyn WakeDetector,
     pub player: &'a mut Player,
-    pub control: &'a mut Option<Control>,
+    /// Every lane the tools act on: robotd, and the navigation
+    /// daemon's when one answers on its socket.
+    pub robot: &'a mut Robot,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -70,7 +72,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
             "version": 1,
             "satellite": {"name": deps.config.agent.name, "version": env!("CARGO_PKG_VERSION")},
             "audio": {"rate": PIPELINE_RATE, "channels": 1, "format": "s16le"},
-            "tools": tools::catalog(),
+            "tools": tools::catalog(deps.robot.nav.as_ref()),
         }),
     )?;
 
@@ -122,7 +124,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         }
                     }
                     "tts.start" => {
-                        pose.end(deps.control);
+                        pose.end(&mut deps.robot.control);
                         let rate =
                             event.get("rate").and_then(Value::as_u64).unwrap_or(22_050) as u32;
                         let channels =
@@ -159,7 +161,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         let name = event.get("name").and_then(Value::as_str).unwrap_or("");
                         let args = event.get("args").cloned().unwrap_or_else(|| json!({}));
                         tracing::info!(id, name, "tool call");
-                        let reply = match tools::execute(name, &args, deps.control) {
+                        let reply = match tools::execute(name, &args, deps.robot) {
                             Ok(data) => {
                                 json!({"type": "tool.result", "id": id, "ok": true, "data": data})
                             }
@@ -185,7 +187,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         let message = event.get("message").and_then(Value::as_str).unwrap_or("");
                         tracing::warn!(message, "bridge error");
                         if pose.waited().is_some() {
-                            pose.end(deps.control);
+                            pose.end(&mut deps.robot.control);
                             sad_ack(deps);
                         }
                     }
@@ -213,13 +215,13 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
 
         // Between an utterance and its reply: hold the thinking pose, and
         // give up with the sad tock if the agent never answers.
-        pose.tick(deps.control);
+        pose.tick(&mut deps.robot.control);
         if pose.waited().is_some_and(|waited| waited > reply_timeout) {
             tracing::warn!(
                 timeout_s = deps.config.thinking.timeout_s,
                 "no reply from the agent"
             );
-            pose.end(deps.control);
+            pose.end(&mut deps.robot.control);
             sad_ack(deps);
         }
 
@@ -241,7 +243,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                             other => format!("{other:?}").to_lowercase(),
                         };
                         tracing::info!("wake");
-                        if !chirp(deps.control) {
+                        if !chirp(&mut deps.robot.control) {
                             wake_ack(deps);
                         }
                         let score = deps.detector.last_score();
@@ -351,7 +353,7 @@ fn wake_ack(deps: &mut Deps) {
 /// The give-up sound: robotd's low peck tock, or the local synthesized
 /// sigh when the robot cannot play one.
 fn sad_ack(deps: &mut Deps) {
-    if quacksat_core::thinking::sad_tock(deps.control) {
+    if quacksat_core::thinking::sad_tock(&mut deps.robot.control) {
         return;
     }
     if let Err(e) = deps.player.play_pcm(quacksat_core::playback::sad_pcm()) {

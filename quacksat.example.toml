@@ -27,6 +27,26 @@ capture_device = "plughw:aic3104,0"
 # or a built-in synthesized quack if unset.
 # wake_sound = "/path/to/quack.wav"
 
+[nav]
+# The navigation daemon (quack-navd, the quack-nav repo, ADR 0006): the
+# map, the places, "where am I", "go to the kitchen", mapping a house.
+# The satellite asks this socket for its tool catalog at startup and
+# announces whatever answers beside its own tools. Nothing listening is
+# not an error: the duck listens and answers, but cannot be sent
+# anywhere, and says so. Set enabled = false to stop asking.
+enabled = true
+socket = "/run/quack-nav.sock"
+
+# Corrections to every walking command (robot.move), applied while
+# walking forward. Off by default: 0, 1, 1.
+# A gait that veers when told to go straight gets a yaw trim (rad/s, + =
+# left; the MuJoCo twin needs about 0.2); a gait that turns better one way
+# gets a gain per side.
+[gait]
+yaw_trim = 0.0
+yaw_gain_left = 1.0
+yaw_gain_right = 1.0
+
 [wake]
 # "openwakeword" (real wake word), "energy" (bring-up: every utterance
 # wakes), or "disabled".

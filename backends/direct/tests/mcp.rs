@@ -6,6 +6,7 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
 use quacksat_backend_direct::mcp;
+use quacksat_core::tools::Robot;
 use serde_json::{Value, json};
 
 fn client() -> ureq::Agent {
@@ -31,7 +32,7 @@ fn post(agent: &ureq::Agent, url: &str, token: Option<&str>, body: &Value) -> (u
 fn mcp_server_speaks_the_stateless_protocol() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/mcp", listener.local_addr().unwrap());
-    let control = Arc::new(Mutex::new(None));
+    let control = Arc::new(Mutex::new(Robot::detached()));
     std::thread::spawn(move || mcp::serve(listener, control, "sesame".to_string()));
     let agent = client();
 
@@ -90,6 +91,10 @@ fn mcp_server_speaks_the_stateless_protocol() {
         .collect();
     assert!(names.contains(&"robot_look"));
     assert!(names.contains(&"robot_move"));
+    // The navigation's tools appear only when `quack-navd` answers on
+    // its socket; this test runs without one (the split of 2026-09-22).
+    assert!(!names.contains(&"robot_where_am_i"));
+    assert!(!names.contains(&"robot_map_step"));
     assert_eq!(names.len(), 7);
 
     // tools/call: unsupported and no-robot outcomes travel as isError.

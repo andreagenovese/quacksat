@@ -35,7 +35,36 @@ pub struct Config {
     pub direct: DirectConfig,
     #[serde(default)]
     pub thinking: ThinkingConfig,
+    /// Where the navigation daemon listens. The map, the places and
+    /// the journeys moved to `quack-navd` (2026-09-22); `[map]` and
+    /// `[homecoming]` are that daemon's config now.
+    #[serde(default)]
+    pub nav: NavConfig,
+    #[serde(default)]
+    pub gait: GaitConfig,
 }
+
+
+
+/// Where the navigation daemon listens (`quack-navd`). Enabled by
+/// default: if nothing answers there the satellite says so once and
+/// carries on as a voice assistant.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NavConfig {
+    pub enabled: bool,
+    pub socket: String,
+}
+
+impl Default for NavConfig {
+    fn default() -> Self {
+        Self { enabled: true, socket: "/run/quack-nav.sock".into() }
+    }
+}
+
+/// The gait's limits (`[gait]`): the navigation has its own copy of the
+/// same numbers in its own config (ADR 0006).
+pub use crate::gait::GaitConfig;
 
 /// The thinking cue: body language while the duck waits for its answer.
 /// Timeline: utterance closed → nothing; after `delay_s` a slow head sway
@@ -119,7 +148,15 @@ impl Default for LlmService {
             base_url: "http://localhost:11434/v1".to_string(),
             api_key: String::new(),
             model: "qwen3:8b".to_string(),
-            system_prompt: "You are quacksat, a small robot duck. Reply in one or two                             spoken sentences, no formatting. Use your robot tools when                             asked to move, look, quack, or act."
+            system_prompt: "You are quacksat, a small robot duck. Reply in one or \
+                            two spoken sentences, no formatting. Use your robot tools \
+                            when asked to move, look, quack, or act. If you have the \
+                            navigation tools: when you have just asked where you are and \
+                            the user names the place, remember it with \
+                            robot.remember_place; when the user tells you to go somewhere \
+                            by name — the kitchen, the bedroom, back to the desk — call \
+                            robot.go_to with that name as `place`; robot.map_explore is \
+                            for mapping a house, never for going to a room you know."
                 .to_string(),
             tool_calling: true,
             max_tool_rounds: 5,
@@ -300,6 +337,27 @@ impl Config {
 mod tests {
     use super::*;
 
+    /// The shipped example is the first thing a new user feeds the
+    /// binary, and `deny_unknown_fields` makes a stale section fatal:
+    /// after the navigation left, `[map]` sat there for a day and the
+    /// example would not start (2026-09-22).
+    #[test]
+    fn the_shipped_example_parses() {
+        let text = include_str!("../../quacksat.example.toml");
+        let config: Config = toml::from_str(text).expect("quacksat.example.toml must parse");
+        assert_eq!(config.backend, Backend::None);
+        assert_eq!(config.nav.socket, "/run/quack-nav.sock");
+    }
+
+    /// The default prompt is a multi-line Rust string: a line that
+    /// forgets its trailing backslash ships the source indentation to
+    /// the model (public main sent it runs of 29 spaces).
+    #[test]
+    fn the_default_prompt_has_no_source_indentation() {
+        let prompt = LlmService::default().system_prompt;
+        assert!(!prompt.contains("  "), "double space in: {prompt}");
+    }
+
     #[test]
     fn parses_minimal_config() {
         let config: Config = toml::from_str("backend = \"wyoming\"").unwrap();
@@ -346,5 +404,19 @@ mod tests {
     fn rejects_unknown_keys() {
         assert!(toml::from_str::<Config>("backend = \"agent\"\ntypo = 1").is_err());
         assert!(toml::from_str::<Config>("backend = \"agent\"\n[audio]\ntypo = 1").is_err());
+    }
+
+    /// The correction is trim plus gain, clamped at the configured top —
+    /// a velstand calibration (gain 1.63, yaw_max 1.7) must be allowed to
+    /// send what alpha's 0.9 clamp would have cut.
+    #[test]
+    fn the_yaw_clamp_is_the_configured_one() {
+        let alpha = GaitConfig { yaw_trim: 0.08, yaw_gain_left: 1.34, yaw_gain_right: 1.58, ..Default::default() };
+        assert!((alpha.yaw(0.3, 0.9) - 0.9).abs() < 1e-9, "alpha stays under 0.9");
+        let velstand = GaitConfig { yaw_trim: 0.16, yaw_gain_left: 1.63, yaw_gain_right: 1.58, yaw_max: 1.7 };
+        assert!((velstand.yaw(0.3, 0.9) - (0.9 * 1.63 + 0.16)).abs() < 1e-9, "1.63 sent, under 1.7");
+        assert!((velstand.yaw(0.3, -0.9) - (-0.9 * 1.58 + 0.16)).abs() < 1e-9);
+        assert!((velstand.yaw(0.3, 1.5) - 1.7).abs() < 1e-9, "and 1.7 is the top");
+        assert_eq!(velstand.yaw(0.0, 0.7), 0.7, "no correction when not walking forward");
     }
 }

@@ -28,6 +28,11 @@ fn fake_aplay(dir: &std::path::Path) -> String {
     let mut perms = std::fs::metadata(&script).unwrap().permissions();
     perms.set_mode(0o755);
     std::fs::set_permissions(&script, perms).unwrap();
+    // Run it once here: macOS inspects a freshly written executable on
+    // its first exec, which can take longer than the player's settle
+    // window — the ack then looked "still playing" and gated every test
+    // frame away (a 1-in-3 failure until this line).
+    std::process::Command::new(&script).status().unwrap();
     script.to_str().unwrap().to_string()
 }
 

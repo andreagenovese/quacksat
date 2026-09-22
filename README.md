@@ -68,6 +68,25 @@ is pending — December 2026.
 - `direct`: the self-contained satellite — it calls the three
   OpenAI-dialect endpoints itself, no bridge, and can serve its own MCP
   endpoint so agents drive the robot directly.
+- Navigation, since 2026-09-22, is a daemon of its own (ADR 0006):
+  `quack-navd`, in the [quacknav](https://github.com/andreagenovese/quacknav)
+  repo, owns the map client, the cliff guard, the planner, the places
+  registry, the explorer and the homecoming, and answers for them on
+  `/run/quack-nav.sock` (NDJSON JSON-RPC, robotd's own wire). quacksat
+  probes that socket at startup: if a daemon answers, its tools are
+  announced beside the satellite's own; if none does, the duck listens
+  and answers but cannot be sent anywhere, and says so. The two repos
+  share no code — only robotd's protocol — so neither has to be cloned
+  to install the other. What the navigation does, and three weeks of
+  measurements on the MuJoCo twin, are documented in that repo.
+- Places, mapping and journeys: the duck learns the name of where it
+  stands ("this is the kitchen"), answers "where are you", maps a house
+  on its own and walks to a place it knows — all of it through the
+  navigation daemon's tools (`robot.where_am_i`, `robot.remember_place`,
+  `robot.map_status`, `robot.map_step`, `robot.map_explore`,
+  `robot.go_to`, the map library), spliced into the catalog the agent
+  sees. Names are attached to map coordinates, never recognized by
+  sight.
 
 ## Getting started
 

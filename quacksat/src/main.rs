@@ -4,7 +4,7 @@ use std::sync::mpsc::{Receiver, sync_channel};
 use anyhow::Context;
 use duck_ipc_proto as proto;
 use quacksat_core::config::{Backend, Config};
-use quacksat_core::robotd::Control;
+use quacksat_core::tools::Robot;
 use quacksat_core::vad::{Vad, VadEvent};
 use quacksat_core::{audio, wake};
 
@@ -67,13 +67,9 @@ fn start_capture(config: &Config) -> anyhow::Result<(Child, Receiver<Vec<i16>>)>
 /// Exercises every core piece against `robotd --fake` or the real robot
 /// without needing a voice backend.
 fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()> {
-    let mut control = match Control::connect(&config.robotd_socket) {
-        Ok(control) => Some(control),
-        Err(e) => {
-            tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-            None
-        }
-    };
+    // Every lane the tools would use, so bring-up exercises the map
+    // client too (its log lines say what the robot's mapping is doing).
+    let mut robot = Robot::connect(config);
 
     let mut vad = Vad::new();
     let mut detector = wake::from_config(&config.wake)?;
@@ -86,7 +82,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
         }
         if detector.feed(&frame) {
             tracing::info!("wake");
-            if let Some(c) = &mut control {
+            if let Some(c) = &mut robot.control {
                 let chirp = proto::Call::RobotSound(proto::SoundParams {
                     tag: proto::SoundTag::Chirp,
                     hold: None,
@@ -96,7 +92,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
                     Ok(result) => tracing::info!(reason = ?result.reason, "chirp refused"),
                     Err(e) => {
                         tracing::warn!(error = %e, "robotd lost — continuing without it");
-                        control = None;
+                        robot.control = None;
                     }
                 }
             }
