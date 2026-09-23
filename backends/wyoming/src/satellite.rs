@@ -14,7 +14,7 @@ use duck_ipc_proto as proto;
 use quacksat_core::audio::{FRAME_SAMPLES, PIPELINE_RATE};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
-use quacksat_core::robotd::Control;
+use quacksat_core::robotd::{Control, Lane};
 use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::wake::WakeDetector;
 use serde_json::{Value, json};
@@ -28,7 +28,9 @@ pub struct Deps<'a> {
     pub frames: &'a mpsc::Receiver<Vec<i16>>,
     pub detector: &'a mut dyn WakeDetector,
     pub player: &'a mut Player,
-    pub control: &'a mut Option<Control>,
+    /// The robotd request lane: the chirp, the thinking pose and the sad
+    /// tock, and it is dialled again when robotd restarts under us.
+    pub lane: &'a mut Lane,
 }
 
 /// Unified input: mic frames and server events race into one channel so a
@@ -117,13 +119,13 @@ fn event_loop(
     loop {
         // Between the transcript and the pipeline's TTS: hold the thinking
         // pose, and give up with the sad tock if HA never answers.
-        pose.tick(deps.control);
+        pose.tick(&mut deps.lane.control);
         if pose.waited().is_some_and(|waited| waited > reply_timeout) {
             tracing::warn!(
                 timeout_s = deps.config.thinking.timeout_s,
                 "no reply from the pipeline"
             );
-            pose.end(deps.control);
+            pose.end(&mut deps.lane.control);
             sad_ack(deps);
         }
 
@@ -178,7 +180,7 @@ fn handle_event(
         }
         "pause-satellite" => {
             *mode = Mode::Paused;
-            pose.end(deps.control);
+            pose.end(&mut deps.lane.control);
             deps.player.stop();
             tracing::info!("satellite paused by home assistant");
         }
@@ -199,7 +201,7 @@ fn handle_event(
             }
         }
         "audio-start" => {
-            pose.end(deps.control);
+            pose.end(&mut deps.lane.control);
             let rate = event
                 .data
                 .get("rate")
@@ -229,7 +231,7 @@ fn handle_event(
             let text = event.data.get("text").and_then(Value::as_str).unwrap_or("");
             tracing::warn!(text, "pipeline error");
             if pose.waited().is_some() {
-                pose.end(deps.control);
+                pose.end(&mut deps.lane.control);
                 sad_ack(deps);
             }
             if *mode == Mode::Streaming {
@@ -264,7 +266,14 @@ fn handle_frame(
             }
             if deps.detector.feed(frame) {
                 tracing::info!("wake");
-                if !chirp(deps.control) {
+                // The duck's own voice and body are all this lane
+                // carries, so this is the one moment worth spending a
+                // dial on: robotd restarts with every update, and
+                // without this the chirp, the thinking pose and the sad
+                // tock would stay gone for the life of the process while
+                // the pipeline kept working and said nothing about it.
+                deps.lane.redial();
+                if !chirp(&mut deps.lane.control) {
                     wake_ack(deps);
                 }
                 write_event(
@@ -345,7 +354,7 @@ fn chirp(control: &mut Option<Control>) -> bool {
 /// The give-up sound: robotd's low peck tock, or the local synthesized
 /// sigh when the robot cannot play one.
 fn sad_ack(deps: &mut Deps) {
-    if quacksat_core::thinking::sad_tock(deps.control) {
+    if quacksat_core::thinking::sad_tock(&mut deps.lane.control) {
         return;
     }
     if let Err(e) = deps.player.play_pcm(quacksat_core::playback::sad_pcm()) {

@@ -162,9 +162,32 @@ the suite against the new tag:
   `robot.skill` enum announced to the agent and as the check before the
   call. `STOCK_SKILLS` is the fallback when the robot does not say (an
   older daemon answers METHOD_NOT_FOUND; an unreachable one says
-  nothing).
+  nothing). The list is read again whenever the lane comes back
+  (`Robot::redial`, below): a robot that restarted under us may not have
+  the same one.
 - **`SubscribeResult`** lost `kick_left`/`kick_right`/`roulade` and
   gained `skills`. We never read them; the stream lane is still unused.
+
+One thing the bump made impossible to leave alone: the request lane is
+dialled again now. It is dropped on the first failed write, and every
+update restarts robotd, so until this a single restart left every robot
+tool answering "robot unreachable" until somebody restarted the
+satellite too — and after 0.14 that also meant carrying a skill list
+from before the update.
+
+`robotd::Lane` is that lane: the connection, where it dials, and when it
+last tried, in one place rather than one copy per backend. `redial()`
+retries at most once every `RECONNECT_DELAY` and answers whether *this
+call* brought the lane back, which is what a caller with something to
+redo on the way up needs — `Robot` re-reads the skill list there. It is
+called where the lane is about to be used, never on a timer: before a
+tool executes, before a catalog is announced, and on the wyoming path at
+the wake word, which is the only moment that lane carries anything (the
+chirp, the thinking pose, the sad tock). That last one is worth stating
+because its failure was invisible: HA's pipeline kept answering while
+the duck sat mute and still, and the local wake ack covered for the
+missing chirp. The `direct` backend builds its catalog per turn rather
+than once at startup for the same family of reason.
 
 Unchanged, and worth recording because it is what the padd pattern buys:
 `robotd/src/sound.rs` is byte-identical, so is the aic3104 init and

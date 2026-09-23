@@ -90,8 +90,13 @@ is pending — December 2026.
 - Pinned to microduck `daemon-v0.14.4` (2026-09-23): builds and tested
   against the current release. Since 0.14 a robot's skills are its own
   config, so `robot.skill` announces and enforces the list the robot
-  reports (`robot.skills`) rather than five names compiled in. What that
-  jump cost is written up in
+  reports (`robot.skills`) rather than five names compiled in — re-read
+  whenever the request lane is dialled again, which it now is: one
+  `robotd::Lane` behind every backend, so robotd restarting under the
+  satellite no longer leaves the robot tools answering "robot
+  unreachable" — or, on the Home Assistant path, the duck mute and
+  still while the pipeline carries on. What that jump cost is written
+  up in
   `docs/study/microduck-ipc-and-packaging.md`.
 
 ## Getting started

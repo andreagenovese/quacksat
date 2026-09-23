@@ -94,8 +94,13 @@ robot è in attesa — dicembre 2026.
 - Pin su microduck `daemon-v0.14.4` (2026-09-23): compila ed è testato
   contro la release corrente. Dalla 0.14 le skill di un robot sono sua
   config, quindi `robot.skill` annuncia e fa rispettare la lista che il
-  robot riporta (`robot.skills`) invece di cinque nomi compilati dentro.
-  Quanto è costato quel salto è scritto in
+  robot riporta (`robot.skills`) invece di cinque nomi compilati dentro —
+  riletta ogni volta che la lane delle richieste si riaggancia, cosa che
+  ora succede: una sola `robotd::Lane` dietro ogni backend, così robotd
+  che riparte sotto il satellite non lascia più i tool del robot a dire
+  "robot unreachable" — né, sul percorso Home Assistant, l'anatra muta e
+  immobile mentre la pipeline va avanti. Quanto è costato quel salto
+  è scritto in
   `docs/study/microduck-ipc-and-packaging.it.md`.
 
 ## Come iniziare

@@ -50,7 +50,7 @@ fn full_conversation_flow() {
         let handle = scope.spawn(move || {
             let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program(&config_ref.audio.playback_device, &aplay);
-            let mut control = None;
+            let mut lane = quacksat_core::robotd::Lane::detached();
             run_connection(
                 satellite_stream,
                 &mut Deps {
@@ -58,7 +58,7 @@ fn full_conversation_flow() {
                     frames: &frames_rx,
                     detector: detector.as_mut(),
                     player: &mut player,
-                    control: &mut control,
+                    lane: &mut lane,
                 },
             )
         });
@@ -183,7 +183,7 @@ fn frames_before_run_satellite_are_ignored() {
         let handle = scope.spawn(move || {
             let mut detector = wake::from_config(&config_ref.wake).unwrap();
             let mut player = Player::with_program(&config_ref.audio.playback_device, &aplay);
-            let mut control = None;
+            let mut lane = quacksat_core::robotd::Lane::detached();
             run_connection(
                 satellite_stream,
                 &mut Deps {
@@ -191,7 +191,7 @@ fn frames_before_run_satellite_are_ignored() {
                     frames: &frames_rx,
                     detector: detector.as_mut(),
                     player: &mut player,
-                    control: &mut control,
+                    lane: &mut lane,
                 },
             )
         });

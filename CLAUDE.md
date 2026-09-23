@@ -71,7 +71,10 @@ On 2026-09-23 the pin moved from `daemon-v0.10.0` to `daemon-v0.14.4`:
 upstream's four releases barely touch us (the audio path, the socket and
 robotd.service are unchanged), but `proto::Skill` is a plain string now
 because a robot's skills are config, so `robot.skill` asks
-`robot.skills` at connect and enforces that list. The whole account is in
+`robot.skills` at connect and enforces that list — and the request lane
+(`robotd::Lane`, shared by every backend) is dialled again when it dies,
+so a robotd restart no longer mutes the robot tools, or the duck itself
+on the wyoming path, for good. The whole account is in
 `docs/study/microduck-ipc-and-packaging.md`.
 
 Next:

@@ -65,6 +65,10 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
             .set_write_timeout(Some(Duration::from_secs(5)))?;
     }
 
+    // The catalog announced here is the robot's own skill list, so the
+    // lane gets its attempt to come back before it is read: a bridge
+    // reconnect is the natural moment to notice robotd is up again.
+    deps.robot.redial();
     send_json(
         &mut ws,
         &json!({
@@ -124,7 +128,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         }
                     }
                     "tts.start" => {
-                        pose.end(&mut deps.robot.control);
+                        pose.end(&mut deps.robot.lane.control);
                         let rate =
                             event.get("rate").and_then(Value::as_u64).unwrap_or(22_050) as u32;
                         let channels =
@@ -187,7 +191,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         let message = event.get("message").and_then(Value::as_str).unwrap_or("");
                         tracing::warn!(message, "bridge error");
                         if pose.waited().is_some() {
-                            pose.end(&mut deps.robot.control);
+                            pose.end(&mut deps.robot.lane.control);
                             sad_ack(deps);
                         }
                     }
@@ -215,13 +219,13 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
 
         // Between an utterance and its reply: hold the thinking pose, and
         // give up with the sad tock if the agent never answers.
-        pose.tick(&mut deps.robot.control);
+        pose.tick(&mut deps.robot.lane.control);
         if pose.waited().is_some_and(|waited| waited > reply_timeout) {
             tracing::warn!(
                 timeout_s = deps.config.thinking.timeout_s,
                 "no reply from the agent"
             );
-            pose.end(&mut deps.robot.control);
+            pose.end(&mut deps.robot.lane.control);
             sad_ack(deps);
         }
 
@@ -243,7 +247,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                             other => format!("{other:?}").to_lowercase(),
                         };
                         tracing::info!("wake");
-                        if !chirp(&mut deps.robot.control) {
+                        if !chirp(&mut deps.robot.lane.control) {
                             wake_ack(deps);
                         }
                         let score = deps.detector.last_score();
@@ -353,7 +357,7 @@ fn wake_ack(deps: &mut Deps) {
 /// The give-up sound: robotd's low peck tock, or the local synthesized
 /// sigh when the robot cannot play one.
 fn sad_ack(deps: &mut Deps) {
-    if quacksat_core::thinking::sad_tock(&mut deps.robot.control) {
+    if quacksat_core::thinking::sad_tock(&mut deps.robot.lane.control) {
         return;
     }
     if let Err(e) = deps.player.play_pcm(quacksat_core::playback::sad_pcm()) {

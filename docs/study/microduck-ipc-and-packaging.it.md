@@ -177,10 +177,34 @@ eseguendo la suite contro il nuovo tag:
   built-in del demone — sia come enum di `robot.skill` annunciato
   all'agente sia come controllo prima della chiamata. `STOCK_SKILLS` è il
   fallback quando il robot non dice nulla (un demone più vecchio risponde
-  METHOD_NOT_FOUND; uno irraggiungibile non risponde).
+  METHOD_NOT_FOUND; uno irraggiungibile non risponde). La lista viene
+  riletta ogni volta che la lane torna su (`Robot::redial`, sotto): un
+  robot riavviato sotto di noi può non avere più la stessa.
 - **`SubscribeResult`** ha perso `kick_left`/`kick_right`/`roulade` e
   guadagnato `skills`. Non li leggevamo; la lane dello stream è ancora
   inutilizzata.
+
+Una cosa che il bump ha reso impossibile lasciar stare: adesso la lane
+delle richieste si riaggancia. Viene abbandonata al primo write fallito, e
+ogni update riavvia robotd, quindi fino a ora un solo riavvio lasciava
+ogni tool del robot a rispondere "robot unreachable" finché qualcuno non
+riavviava anche il satellite — e dopo la 0.14 significava anche portarsi
+dietro una lista di skill precedente all'update.
+
+`robotd::Lane` è quella lane: la connessione, dove chiamare e quando ci
+ha provato l'ultima volta, in un posto solo invece di una copia per
+backend. `redial()` riprova al massimo una volta ogni `RECONNECT_DELAY` e
+risponde se è **questa chiamata** ad aver riportato su la lane, che è ciò
+che serve a chi ha qualcosa da rifare al ritorno — `Robot` ci rilegge la
+lista delle skill. Va chiamata dove la lane sta per essere usata, mai a
+timer: prima che un tool esegua, prima che un catalogo venga annunciato,
+e sul percorso wyoming al wake word, l'unico momento in cui quella lane
+porta qualcosa (il verso, la posa di pensiero, il tock di resa).
+Quest'ultimo caso vale la pena dirlo perché il guasto era invisibile: la
+pipeline di HA continuava a rispondere mentre l'anatra restava muta e
+ferma, e l'ack locale del wake copriva il verso mancante. Il backend
+`direct` costruisce il suo catalogo a ogni turno invece che una volta
+all'avvio, per un motivo della stessa famiglia.
 
 Invariato, e vale la pena registrarlo perché è ciò che compra il pattern
 padd: `robotd/src/sound.rs` è identico byte per byte, e così l'init

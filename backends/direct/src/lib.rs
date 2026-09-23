@@ -56,10 +56,6 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
         None => Player::new(&config.audio.playback_device),
     };
     let mut detector = wake::from_config(&config.wake)?;
-    let tools_catalog = {
-        let robot = control.lock().expect("robot poisoned");
-        openai::openai_tools(&tools::catalog(&robot))
-    };
     let mut history: Vec<Value> = Vec::new();
 
     tracing::info!(
@@ -89,7 +85,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             while frames.try_recv().is_ok() {}
             match record_utterance(&frames, &mut player)? {
                 Some(utterance) => {
-                    match run_turn_posed(config, &utterance, &mut history, &tools_catalog, &control)
+                    match run_turn_posed(config, &utterance, &mut history, &control)
                     {
                         Ok(Some(reply)) => speak(config, &mut player, &reply),
                         Ok(None) => tracing::info!("no answer to the question"),
@@ -114,7 +110,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
             let Some(utterance) = record_utterance(&frames, &mut player)? else {
                 break; // silence — back to the wake word
             };
-            match run_turn_posed(config, &utterance, &mut history, &tools_catalog, &control) {
+            match run_turn_posed(config, &utterance, &mut history, &control) {
                 Ok(Some(reply)) => {
                     speak(config, &mut player, &reply);
                     while frames.try_recv().is_ok() {}
@@ -184,7 +180,6 @@ fn run_turn_posed(
     config: &Config,
     utterance: &[i16],
     history: &mut Vec<Value>,
-    tools_catalog: &Value,
     control: &mcp::SharedRobot,
 ) -> anyhow::Result<Option<String>> {
     let stop = AtomicBool::new(false);
@@ -199,14 +194,14 @@ fn run_turn_posed(
                 }
                 {
                     let mut guard = mcp::lock(control);
-                    pose.tick(&mut guard.control);
+                    pose.tick(&mut guard.lane.control);
                 }
                 std::thread::sleep(std::time::Duration::from_millis(50));
             }
             let mut guard = mcp::lock(control);
-            pose.end(&mut guard.control);
+            pose.end(&mut guard.lane.control);
         });
-        let result = run_turn(config, utterance, history, tools_catalog, control, &acting);
+        let result = run_turn(config, utterance, history, control, &acting);
         stop.store(true, Ordering::Relaxed);
         result
     })
@@ -216,7 +211,6 @@ fn run_turn(
     config: &Config,
     utterance: &[i16],
     history: &mut Vec<Value>,
-    tools_catalog: &Value,
     control: &mcp::SharedRobot,
     acting: &AtomicBool,
 ) -> anyhow::Result<Option<String>> {
@@ -229,7 +223,15 @@ fn run_turn(
     history.push(json!({"role": "user", "content": text}));
 
     let llm = &config.direct.llm;
-    let tools = llm.tool_calling.then_some(tools_catalog);
+    // Built here rather than held from startup: the skill list belongs
+    // to the robot, and one that restarted under us may come back with a
+    // different one (`Robot::redial`).
+    let tools_catalog = {
+        let mut robot = mcp::lock(control);
+        robot.redial();
+        openai::openai_tools(&tools::catalog(&robot))
+    };
+    let tools = llm.tool_calling.then_some(&tools_catalog);
     let mut reply = None;
     for _ in 0..llm.max_tool_rounds {
         let mut messages = vec![json!({"role": "system", "content": llm.system_prompt})];
@@ -309,7 +311,7 @@ fn speak(config: &Config, player: &mut Player, text: &str) {
 
 fn chirp(control: &mcp::SharedRobot) -> bool {
     let mut guard = mcp::lock(control);
-    let control = &mut guard.control;
+    let control = &mut guard.lane.control;
     let Some(c) = control else { return false };
     let call = proto::Call::RobotSound(proto::SoundParams {
         tag: proto::SoundTag::Chirp,
@@ -334,7 +336,7 @@ fn chirp(control: &mcp::SharedRobot) -> bool {
 fn sad_ack(control: &mcp::SharedRobot, player: &mut Player) {
     let played = {
         let mut guard = mcp::lock(control);
-        quacksat_core::thinking::sad_tock(&mut guard.control)
+        quacksat_core::thinking::sad_tock(&mut guard.lane.control)
     };
     if played {
         return;

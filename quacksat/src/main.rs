@@ -82,7 +82,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
         }
         if detector.feed(&frame) {
             tracing::info!("wake");
-            if let Some(c) = &mut robot.control {
+            if let Some(c) = &mut robot.lane.control {
                 let chirp = proto::Call::RobotSound(proto::SoundParams {
                     tag: proto::SoundTag::Chirp,
                     hold: None,
@@ -92,7 +92,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
                     Ok(result) => tracing::info!(reason = ?result.reason, "chirp refused"),
                     Err(e) => {
                         tracing::warn!(error = %e, "robotd lost — continuing without it");
-                        robot.control = None;
+                        robot.lane.control = None;
                     }
                 }
             }

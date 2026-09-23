@@ -11,7 +11,7 @@
 use crate::config::Config;
 use crate::body::{clamp, move_params, notify, number, request, require_str, timed_move, trimmed, with_robot};
 use crate::nav_client::NavLane;
-use crate::robotd::Control;
+use crate::robotd::{Control, Lane};
 use duck_ipc_proto as proto;
 use serde_json::{Value, json};
 
@@ -76,8 +76,9 @@ fn skills_of(control: &mut Option<Control>) -> Vec<String> {
 }
 
 pub struct Robot {
-    /// The request lane; `None` while robotd is unreachable.
-    pub control: Option<Control>,
+    /// The request lane: discrete intents and queries, dialled again
+    /// when it dies (`Lane`).
+    pub lane: Lane,
     /// The `[gait]` section: yaw trim and per-side gains for every walk.
     pub gait: crate::config::GaitConfig,
     /// What `robot.skill` may be asked for: the robot's own list, or the
@@ -94,26 +95,34 @@ impl Robot {
     /// missing robotd or navigation daemon degrades to "the tool says
     /// so" at call time.
     pub fn connect(config: &Config) -> Self {
-        let mut control = match Control::connect(&config.robotd_socket) {
-            Ok(control) => Some(control),
-            Err(e) => {
-                tracing::warn!(error = %e, "robotd unreachable — running without the robot");
-                None
-            }
-        };
-        let skills = skills_of(&mut control);
+        let mut lane = Lane::connect(&config.robotd_socket);
+        let skills = skills_of(&mut lane.control);
         Self {
-            control,
+            lane,
             gait: config.gait.clone(),
             skills,
             nav: NavLane::probe(&config.nav),
         }
     }
 
+    /// Give the lane its chance to come back, and re-read the skill
+    /// list when it does: a robot that restarted under us — which is
+    /// what an update looks like from here — may not have the same one.
+    pub fn redial(&mut self) {
+        if !self.lane.redial() {
+            return;
+        }
+        let skills = skills_of(&mut self.lane.control);
+        if skills != self.skills {
+            tracing::info!(?skills, "the robot came back with a different skill list");
+        }
+        self.skills = skills;
+    }
+
     /// No robotd, no navigation (tests, dry runs).
     pub fn detached() -> Self {
         Self {
-            control: None,
+            lane: Lane::detached(),
             gait: crate::config::GaitConfig::default(),
             skills: stock_skills(),
             nav: None,
@@ -234,7 +243,10 @@ pub fn execute(name: &str, args: &Value, robot: &mut Robot) -> Result<Value, Str
     {
         return nav.call(name, args);
     }
-    let control = &mut robot.control;
+    // Everything below needs the robot, so this is where a lane that
+    // died gets one attempt to come back.
+    robot.redial();
+    let control = &mut robot.lane.control;
     match name {
         "robot.sound" => {
             let tag = require_str(args, "tag")?;
@@ -483,6 +495,94 @@ mod tests {
             .find(|tool| tool["name"] == "robot.skill")
             .unwrap();
         assert_eq!(skill["parameters"]["properties"]["name"]["enum"], json!(["bow"]));
+    }
+
+    #[test]
+    fn a_lane_that_died_is_dialled_again_with_the_list_the_robot_has_now() {
+        use std::io::{BufRead, BufReader, Write};
+        use std::os::unix::net::{UnixListener, UnixStream};
+
+        fn read_request(reader: &mut BufReader<UnixStream>) -> proto::Request {
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            serde_json::from_str(&line).unwrap()
+        }
+        fn answer(stream: &mut UnixStream, response: &proto::Response) {
+            let mut out = serde_json::to_vec(response).unwrap();
+            out.push(b'\n');
+            stream.write_all(&out).unwrap();
+            stream.flush().unwrap();
+        }
+        fn listing(name: &str) -> proto::SkillsResult {
+            proto::SkillsResult {
+                skills: vec![proto::SkillParams {
+                    name: name.to_string(),
+                    ..Default::default()
+                }],
+                built_in: Vec::new(),
+            }
+        }
+
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("robotd.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let server = std::thread::spawn(move || {
+            // First life: it can bow. Then it goes away mid-session,
+            // which is what an update doing `systemctl restart robotd`
+            // looks like from here.
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_request(&mut reader);
+            assert_eq!(request.method, "robot.skills");
+            answer(&mut stream, &proto::Response::ok(request.id, &listing("bow")));
+            drop(reader);
+            drop(stream);
+
+            // Second life, same socket, another skill table — and the
+            // `robot.do` that the satellite could only send because it
+            // dialled again.
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let request = read_request(&mut reader);
+            assert_eq!(request.method, "robot.skills");
+            answer(
+                &mut stream,
+                &proto::Response::ok(request.id, &listing("roulade")),
+            );
+            let request = read_request(&mut reader);
+            assert_eq!(request.method, "robot.do");
+            answer(
+                &mut stream,
+                &proto::Response::ok(request.id, &proto::IntentResult::accepted()),
+            );
+        });
+
+        let config: Config = toml::from_str(&format!(
+            "backend = \"direct\"\nrobotd_socket = \"{}\"\n[nav]\nenabled = false\n",
+            socket.display()
+        ))
+        .unwrap();
+        let mut robot = Robot::connect(&config);
+        assert_eq!(robot.skills, vec!["bow".to_string()]);
+
+        // The robot is gone: the call that finds out loses the lane.
+        assert!(execute("robot.skill", &json!({"name": "bow"}), &mut robot).is_err());
+        assert!(robot.lane.control.is_none());
+
+        // The next one dials again and asks what this robot can do now,
+        // so a skill that did not exist a second ago goes through.
+        assert_eq!(
+            execute("robot.skill", &json!({"name": "roulade"}), &mut robot),
+            Ok(json!({"done": true}))
+        );
+        assert_eq!(robot.skills, vec!["roulade".to_string()]);
+        // And the one it used to have is refused, rather than sent to a
+        // robot that would not know it.
+        assert_eq!(
+            execute("robot.skill", &json!({"name": "bow"}), &mut robot),
+            Err("unknown skill `bow`".to_string())
+        );
+        server.join().unwrap();
     }
 
     #[test]
