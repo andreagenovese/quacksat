@@ -58,7 +58,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
     let mut detector = wake::from_config(&config.wake)?;
     let tools_catalog = {
         let robot = control.lock().expect("robot poisoned");
-        openai::openai_tools(&tools::catalog(robot.nav.as_ref()))
+        openai::openai_tools(&tools::catalog(&robot))
     };
     let mut history: Vec<Value> = Vec::new();
 

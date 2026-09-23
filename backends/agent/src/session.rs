@@ -72,7 +72,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
             "version": 1,
             "satellite": {"name": deps.config.agent.name, "version": env!("CARGO_PKG_VERSION")},
             "audio": {"rate": PIPELINE_RATE, "channels": 1, "format": "s16le"},
-            "tools": tools::catalog(deps.robot.nav.as_ref()),
+            "tools": tools::catalog(deps.robot),
         }),
     )?;
 

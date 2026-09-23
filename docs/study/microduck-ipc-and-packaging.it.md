@@ -1,7 +1,9 @@
 # Studio: superficie di duck-ipc-proto, updaterd, ordine di restart
 
 Fonte: `pollen-robotics/microduck` @ clone del 2026-08-31 (workspace
-v0.10.0, edition 2024, rust-version 1.89). Note complementari:
+v0.10.0, edition 2024, rust-version 1.89), riletto contro
+`daemon-v0.14.4` il 2026-09-23 — vedi "L'allineamento 0.10 → 0.14" in
+fondo, che è ciò che dice il pin oggi. Note complementari:
 `microduck-client-pattern.md`, `microduck-speaker-path.md`,
 `microduck-mic-path.md`.
 
@@ -18,10 +20,10 @@ v0.10.0, edition 2024, rust-version 1.89). Note complementari:
   dipenderne via git.
 - **Come quacksat dovrebbe dipenderne**:
   ```toml
-  duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.10.0" }
+  duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.14.4" }
   ```
   Pinnare a un tag di release `daemon-v*` (immutabile), corrispondente alla
-  release sulla board; aggiornare deliberatamente. `API_VERSION` (16) è
+  release sulla board; aggiornare deliberatamente. `API_VERSION` (34) è
   informativo — nessun demone rifiuta per differenza di versione; ciò che
   si rompe è una shape di parametri spostata, che si rifiuta da sé per
   nome. Impostare `rust-version = "1.89"`. Usare il re-export `semver` del
@@ -142,3 +144,54 @@ Invece di riprodurre l'audio da sé, quacksat potrebbe pilotare
 `robot.sound` + `robot.mouth` e lasciare che robotd sia la voce — funziona
 solo per i versi dell'anatra (enum chiuso), non per il TTS; vedi
 `microduck-speaker-path.md`.
+
+## L'allineamento 0.10 → 0.14 (2026-09-23)
+
+Upstream è passato da `daemon-v0.10.0` a `daemon-v0.14.4` in quattro
+release: 412 commit, 229 file, +50k/−3,2k. Quasi niente è roba nostra. I
+temi: accesso remoto (il robot appartiene a un account Hugging Face,
+`mediad` guadagna un relay WebRTC e TURN), il canale delle policy (gait e
+duck detector arrivano dall'Hub, `/opt/robot/policies/current`, fuori
+dalla release), le IMU di testa e pad, `robot.rebootMotors` e
+l'osservabilità (`system.logs`, uno stato "degraded", il throttling della
+CPU nella health).
+
+Ciò che ha davvero raggiunto il satellite, verificato compilando ed
+eseguendo la suite contro il nuovo tag:
+
+- **Nessun problema di handshake.** `API_VERSION` 16 → 34, e il gate a
+  monte non c'è più: nessun demone rifiuta una chiamata perché il numero
+  differisce. quacksat comunque non ha mai mandato `hello`. Tutti i tipi
+  di parametri che inviamo sono invariati, e i tipi di risultato non sono
+  `deny_unknown_fields`, quindi la build pre-bump parlava con un robot
+  0.14 così com'era.
+- **`RobotState` ha guadagnato quattro campi** (`t_ns`, `imu`, `frames`,
+  `skeleton` — API v24/v25, per un mapper che appaia un frame a una
+  posa). La deserializzazione li ignora; solo la nostra fixture di test
+  esaustiva ha dovuto impararli.
+- **`Skill` ha smesso di essere un enum** (`pub type Skill = String`, API
+  v22): le skill di un robot sono config `[[policy.skill]]` adesso. Così
+  niente sul filo rifiuta più un errore di battitura, e i cinque nomi non
+  sono più un'assunzione sicura. quacksat chiede `robot.skills` una volta
+  alla connessione e usa la risposta — la tabella configurata più i
+  built-in del demone — sia come enum di `robot.skill` annunciato
+  all'agente sia come controllo prima della chiamata. `STOCK_SKILLS` è il
+  fallback quando il robot non dice nulla (un demone più vecchio risponde
+  METHOD_NOT_FOUND; uno irraggiungibile non risponde).
+- **`SubscribeResult`** ha perso `kick_left`/`kick_right`/`roulade` e
+  guadagnato `skills`. Non li leggevamo; la lane dello stream è ancora
+  inutilizzata.
+
+Invariato, e vale la pena registrarlo perché è ciò che compra il pattern
+padd: `robotd/src/sound.rs` è identico byte per byte, e così l'init
+aic3104 e robotd.service; il path del socket e i suoi permessi sono gli
+stessi; pet-detect apre la cattura allo stesso modo (ha solo aggiunto una
+sentinella che salta l'inferenza in una stanza silenziosa); `mediad` non
+tocca l'audio per niente. L'ADR 0003 regge così com'è scritto.
+
+Una cosa da portarsi a dicembre: lo slot walk stock ora è
+`velstand.onnx`, con `stand = "none"` (velstand sta in piedi da sé). È
+quella la gait contro cui `[gait]` sarà trimmato, e gli unici numeri che
+abbiamo sono quelli del gemello (gain 1.63/1.58, `yaw_max` 1.7 — vedi
+`gait.rs`); la config distribuita non corregge ancora nulla, che è il
+default giusto per una board che nessuno ha ancora misurato.

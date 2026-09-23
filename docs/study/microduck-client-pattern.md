@@ -26,7 +26,7 @@ remote client will use".
   `deny_unknown_fields`; result structs are not — tolerate unknown fields
   and unknown lines.
 - robotd caps lines at `MAX_LINE = 64 KiB`.
-- `hello` exists (`HelloResult { api_version: 16, … }`) but is a liveness
+- `hello` exists (`HelloResult { api_version: 34, … }`) but is a liveness
   check, **not a gate** — no daemon refuses on version skew; warn once.
 
 ## The deadman (safety contract)

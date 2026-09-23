@@ -87,6 +87,12 @@ is pending — December 2026.
   `robot.go_to`, the map library), spliced into the catalog the agent
   sees. Names are attached to map coordinates, never recognized by
   sight.
+- Pinned to microduck `daemon-v0.14.4` (2026-09-23): builds and tested
+  against the current release. Since 0.14 a robot's skills are its own
+  config, so `robot.skill` announces and enforces the list the robot
+  reports (`robot.skills`) rather than five names compiled in. What that
+  jump cost is written up in
+  `docs/study/microduck-ipc-and-packaging.md`.
 
 ## Getting started
 

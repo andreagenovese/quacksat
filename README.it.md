@@ -91,6 +91,12 @@ robot è in attesa — dicembre 2026.
   delle mappe), innestati nel catalogo che l'agente vede. I nomi sono
   legati a coordinate della mappa, mai riconosciuti a vista; un reset
   della mappa li rende stantii finché non vengono reinsegnati.
+- Pin su microduck `daemon-v0.14.4` (2026-09-23): compila ed è testato
+  contro la release corrente. Dalla 0.14 le skill di un robot sono sua
+  config, quindi `robot.skill` annuncia e fa rispettare la lista che il
+  robot riporta (`robot.skills`) invece di cinque nomi compilati dentro.
+  Quanto è costato quel salto è scritto in
+  `docs/study/microduck-ipc-and-packaging.it.md`.
 
 ## Come iniziare
 

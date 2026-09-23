@@ -26,7 +26,7 @@ the SDK and any remote client will use".
   dei parametri sono `deny_unknown_fields`; quelle dei risultati no —
   tollerare campi sconosciuti e righe sconosciute.
 - robotd limita le righe a `MAX_LINE = 64 KiB`.
-- `hello` esiste (`HelloResult { api_version: 16, … }`) ma è un check di
+- `hello` esiste (`HelloResult { api_version: 34, … }`) ma è un check di
   liveness, **non un gate** — nessun demone rifiuta per differenza di
   versione; avvisare una volta sola.
 

@@ -67,6 +67,13 @@ cue (head sway while waiting, sad tock on timeout — `[thinking]`).
 Everything is validated live on a dev Mac against real services; see
 README → Status.
 
+On 2026-09-23 the pin moved from `daemon-v0.10.0` to `daemon-v0.14.4`:
+upstream's four releases barely touch us (the audio path, the socket and
+robotd.service are unchanged), but `proto::Skill` is a plain string now
+because a robot's skills are config, so `robot.skill` asks
+`robot.skills` at connect and enforces that list. The whole account is in
+`docs/study/microduck-ipc-and-packaging.md`.
+
 Next:
 
 1. **December 2026**: the physical duck arrives — on-hardware

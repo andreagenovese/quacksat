@@ -25,16 +25,64 @@ const MAX_LOOK_Z_M: f64 = 2.0;
 const MAX_HEAD_PITCH_RAD: f64 = 0.6;
 const MAX_HEAD_YAW_RAD: f64 = 1.2;
 const MAX_HEAD_ROLL_RAD: f64 = 0.5;
-/// A mapping step must end at least this far from a mapped wall ahead —
-/// the sensor's blind band is 10 cm and the gait wanders.
-/// `QK_WALL_MARGIN_M`: 0.18 since 2026-09-16 (was 0.25) (the user's rule: shrink the
-/// margins, the refusals must be nearly none) — the flank 8 cm from the
-/// wall at the leg's end, and the leg is shortened before it is refused.
+
+/// What `robot.do` answered to before daemon 0.14 made the skill table
+/// config, and what a stock robot still answers to. The fallback when the
+/// robot does not say: an older daemon refuses `robot.skills` with
+/// METHOD_NOT_FOUND, and an unreachable one says nothing at all.
+pub const STOCK_SKILLS: [&str; 5] = [
+    "ground_pick",
+    "kick_left",
+    "kick_right",
+    "sit_toggle",
+    "roulade",
+];
+
+fn stock_skills() -> Vec<String> {
+    STOCK_SKILLS.iter().map(|name| (*name).to_string()).collect()
+}
+
+/// Ask the robot what it can do, once, at connect time.
+///
+/// Since daemon 0.14 (API v22) a skill is a `[[policy.skill]]` entry, so
+/// which ones exist is this robot's business and not ours to assume —
+/// `proto::Skill` stopped being an enum for the same reason. The answer
+/// carries the configured table and the two the daemon drives itself
+/// (`ground_pick`, `sit_toggle`); an agent choosing a skill needs both.
+fn skills_of(control: &mut Option<Control>) -> Vec<String> {
+    let reported = request(control, &proto::Call::RobotSkills)
+        .ok()
+        .filter(|response| response.error.is_none())
+        .and_then(|response| response.result_as::<proto::SkillsResult>().ok())
+        .map(|result| {
+            result
+                .skills
+                .into_iter()
+                .map(|skill| skill.name)
+                .chain(result.built_in)
+                .collect::<Vec<String>>()
+        })
+        .filter(|names| !names.is_empty());
+    match reported {
+        Some(names) => {
+            tracing::info!(skills = ?names, "the robot listed its skills");
+            names
+        }
+        None => {
+            tracing::info!("the robot did not list its skills — assuming the stock five");
+            stock_skills()
+        }
+    }
+}
+
 pub struct Robot {
     /// The request lane; `None` while robotd is unreachable.
     pub control: Option<Control>,
     /// The `[gait]` section: yaw trim and per-side gains for every walk.
     pub gait: crate::config::GaitConfig,
+    /// What `robot.skill` may be asked for: the robot's own list, or the
+    /// stock five when it does not say. See [`skills_of`].
+    pub skills: Vec<String>,
     /// The navigation daemon, when one answers on its socket: its tools
     /// are announced beside the satellite's and executed there
     /// (`quack-navd`, the split of 2026-09-22).
@@ -46,29 +94,36 @@ impl Robot {
     /// missing robotd or navigation daemon degrades to "the tool says
     /// so" at call time.
     pub fn connect(config: &Config) -> Self {
-        let control = match Control::connect(&config.robotd_socket) {
+        let mut control = match Control::connect(&config.robotd_socket) {
             Ok(control) => Some(control),
             Err(e) => {
                 tracing::warn!(error = %e, "robotd unreachable — running without the robot");
                 None
             }
         };
+        let skills = skills_of(&mut control);
         Self {
             control,
             gait: config.gait.clone(),
+            skills,
             nav: NavLane::probe(&config.nav),
         }
     }
 
     /// No robotd, no navigation (tests, dry runs).
     pub fn detached() -> Self {
-        Self { control: None, gait: crate::config::GaitConfig::default(), nav: None }
+        Self {
+            control: None,
+            gait: crate::config::GaitConfig::default(),
+            skills: stock_skills(),
+            nav: None,
+        }
     }
 }
 
 /// The catalog announced in `session.start`. JSON-Schema parameters,
 /// directly projectable to OpenAI tools and MCP listings.
-pub fn catalog(nav: Option<&NavLane>) -> Value {
+pub fn catalog(robot: &Robot) -> Value {
     let mut tools = vec![
         json!({
             "name": "robot.sound",
@@ -117,10 +172,11 @@ pub fn catalog(nav: Option<&NavLane>) -> Value {
             "name": "robot.skill",
             "description": "Run a one-shot skill; it takes a few seconds. ground_pick pecks at \
         the ground, kick_left/kick_right kick, sit_toggle sits down or stands back up (it \
-        toggles), roulade does a somersault.",
+        toggles), roulade does a somersault. The list below is this robot's own — since daemon \
+        0.14 its skills are configurable, so a name that is not there does not exist here.",
             "parameters": {
                 "type": "object",
-                "properties": {"name": {"type": "string", "enum": ["ground_pick", "kick_left", "kick_right", "sit_toggle", "roulade"]}},
+                "properties": {"name": {"type": "string", "enum": &robot.skills}},
                 "required": ["name"]
             }
         }),
@@ -159,7 +215,7 @@ pub fn catalog(nav: Option<&NavLane>) -> Value {
     fails, tell the user you cannot see yet.",
         "parameters": {"type": "object", "properties": {}}
     }));
-    if let Some(nav) = nav {
+    if let Some(nav) = robot.nav.as_ref() {
         // The navigation daemon's own tools, announced as if they were
         // ours: the agent sees one robot, `execute` routes by name.
         tools.extend(nav.catalog());
@@ -227,8 +283,14 @@ pub fn execute(name: &str, args: &Value, robot: &mut Robot) -> Result<Value, Str
         }
         "robot.skill" => {
             let skill_name = require_str(args, "name")?;
-            let skill: proto::Skill = serde_json::from_value(json!(skill_name))
-                .map_err(|_| format!("unknown skill `{skill_name}`"))?;
+            // Checked against what this robot answered `robot.skills`
+            // with, not against a list compiled in: `proto::Skill` is a
+            // plain name since daemon 0.14, so nothing on the wire
+            // refuses a typo before it reaches the robot any more.
+            if !robot.skills.iter().any(|skill| skill == skill_name) {
+                return Err(format!("unknown skill `{skill_name}`"));
+            }
+            let skill: proto::Skill = skill_name.to_string();
             let result = intent(control, &proto::Call::RobotDo(proto::DoParams { skill }))?;
             intent_outcome(result)
         }
@@ -338,13 +400,97 @@ mod tests {
     // The map, the places and the steps are the navigation daemon's:
     // their tests moved to `quack-nav` with the code (2026-09-22).
 
+    /// One fake robotd that answers a single `robot.skills` request with
+    /// `answer`, so the two skew cases below differ only in that answer.
+    fn skills_against(answer: fn(Option<proto::Id>) -> proto::Response) -> Vec<String> {
+        use std::io::{BufRead, BufReader, Write};
+        use std::os::unix::net::UnixListener;
+
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("robotd.sock");
+        let listener = UnixListener::bind(&socket).unwrap();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            let request: proto::Request = serde_json::from_str(&line).unwrap();
+            assert_eq!(request.method, "robot.skills");
+            let mut out = serde_json::to_vec(&answer(request.id)).unwrap();
+            out.push(b'\n');
+            let mut writer = stream;
+            writer.write_all(&out).unwrap();
+            writer.flush().unwrap();
+        });
+
+        let mut control = Some(Control::connect(socket.to_str().unwrap()).unwrap());
+        let skills = skills_of(&mut control);
+        server.join().unwrap();
+        skills
+    }
+
+    #[test]
+    fn the_skills_are_the_robots_own_table_plus_its_built_ins() {
+        let skills = skills_against(|id| {
+            proto::Response::ok(
+                id,
+                &proto::SkillsResult {
+                    skills: vec![proto::SkillParams {
+                        name: "bow".to_string(),
+                        ..Default::default()
+                    }],
+                    built_in: vec!["sit_toggle".to_string()],
+                },
+            )
+        });
+        // A robot with a configured `bow` and nothing else has a bow and a
+        // sit toggle — not the five this satellite used to assume.
+        assert_eq!(skills, vec!["bow".to_string(), "sit_toggle".to_string()]);
+    }
+
+    #[test]
+    fn a_daemon_that_does_not_know_robot_skills_leaves_the_stock_five() {
+        let skills = skills_against(|id| {
+            proto::Response::err(
+                id,
+                proto::Error::new(-32601, "method not found: robot.skills"),
+            )
+        });
+        assert_eq!(skills, stock_skills());
+    }
+
+    #[test]
+    fn a_skill_the_robot_never_listed_is_refused_before_the_wire() {
+        let mut robot = Robot::detached();
+        robot.skills = vec!["bow".to_string()];
+        // `proto::Skill` is a plain string since daemon 0.14, so this is
+        // the only place left that can tell a typo from a skill.
+        assert_eq!(
+            execute("robot.skill", &json!({"name": "roulade"}), &mut robot),
+            Err("unknown skill `roulade`".to_string())
+        );
+        // One the robot did list gets as far as the missing lane.
+        assert_eq!(
+            execute("robot.skill", &json!({"name": "bow"}), &mut robot),
+            Err("robot unreachable".to_string())
+        );
+        // And the agent is told the same list the executor enforces.
+        let catalog = catalog(&robot);
+        let skill = catalog
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "robot.skill")
+            .unwrap();
+        assert_eq!(skill["parameters"]["properties"]["name"]["enum"], json!(["bow"]));
+    }
 
     #[test]
     fn catalog_matches_the_executor_allowlist() {
         // Without a navigation daemon the satellite announces its own
         // tools and nothing else; with one, the daemon's catalog is
         // spliced in (see `crate::nav_client`).
-        let catalog = catalog(None);
+        let catalog = catalog(&Robot::detached());
         let names: Vec<&str> = catalog
             .as_array()
             .unwrap()

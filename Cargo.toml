@@ -20,7 +20,7 @@ authors = ["Andrea Genovese <info@rstonline.it>"]
 [workspace.dependencies]
 # Pinned to the release running on the board; bump deliberately (ADR 0001,
 # docs/study/microduck-ipc-and-packaging.md).
-duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.10.0" }
+duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.14.4" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

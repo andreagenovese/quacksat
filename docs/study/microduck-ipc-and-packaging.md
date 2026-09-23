@@ -1,7 +1,9 @@
 # Study: duck-ipc-proto surface, updaterd, restart order
 
 Source: `pollen-robotics/microduck` @ clone of 2026-08-31 (workspace
-v0.10.0, edition 2024, rust-version 1.89). Companion notes:
+v0.10.0, edition 2024, rust-version 1.89), re-read against
+`daemon-v0.14.4` on 2026-09-23 — see "The 0.10 → 0.14 alignment" at the
+end, which is what the pin says today. Companion notes:
 `microduck-client-pattern.md`, `microduck-speaker-path.md`,
 `microduck-mic-path.md`.
 
@@ -16,10 +18,10 @@ v0.10.0, edition 2024, rust-version 1.89). Companion notes:
   2026-08-26). External crates can depend via git.
 - **How quacksat should depend on it**:
   ```toml
-  duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.10.0" }
+  duck-ipc-proto = { git = "https://github.com/pollen-robotics/microduck.git", tag = "daemon-v0.14.4" }
   ```
   Pin to a `daemon-v*` release tag (immutable), matching the release on
-  the board; bump deliberately. `API_VERSION` (16) is informational — no
+  the board; bump deliberately. `API_VERSION` (34) is informational — no
   daemon refuses on skew; what breaks is a moved param shape, which
   refuses itself by name. Set `rust-version = "1.89"`. Use the crate's
   `semver` re-export. Enable `test-support` in dev-deps only. Don't
@@ -128,3 +130,52 @@ v0.10.0, edition 2024, rust-version 1.89). Companion notes:
 Instead of playing audio itself, quacksat could drive `robot.sound` +
 `robot.mouth` and let robotd be the voice — works only for duck noises
 (closed enum), not TTS; see `microduck-speaker-path.md`.
+
+## The 0.10 → 0.14 alignment (2026-09-23)
+
+Upstream went from `daemon-v0.10.0` to `daemon-v0.14.4` in four releases:
+412 commits, 229 files, +50k/−3.2k. Almost none of it is ours. The
+themes: remote access (a robot belongs to a Hugging Face account,
+`mediad` gains a WebRTC relay and TURN), the policy channel (gaits and
+the duck detector come from the Hub, `/opt/robot/policies/current`,
+outside the release), the head and pad IMUs, `robot.rebootMotors`, and
+observability (`system.logs`, a "degraded" status, CPU throttling in the
+health).
+
+What actually reached the satellite, verified by compiling and running
+the suite against the new tag:
+
+- **No handshake problem.** `API_VERSION` 16 → 34, and the gate is gone
+  upstream: no daemon refuses a call because the number differs. quacksat
+  never sent `hello` anyway. Every params type we send is unchanged, and
+  result types are not `deny_unknown_fields`, so the pre-bump build
+  talked to a 0.14 robot as it was.
+- **`RobotState` gained four fields** (`t_ns`, `imu`, `frames`,
+  `skeleton` — API v24/v25, for a mapper pairing a frame with a pose).
+  Deserialisation ignores them; only our exhaustive test fixture had to
+  learn them.
+- **`Skill` stopped being an enum** (`pub type Skill = String`, API v22):
+  a robot's skills are `[[policy.skill]]` config now. So nothing on the
+  wire refuses a typo any more, and the five names are no longer a safe
+  assumption. quacksat asks `robot.skills` once at connect and uses the
+  answer — the configured table plus the daemon's built-ins — both as the
+  `robot.skill` enum announced to the agent and as the check before the
+  call. `STOCK_SKILLS` is the fallback when the robot does not say (an
+  older daemon answers METHOD_NOT_FOUND; an unreachable one says
+  nothing).
+- **`SubscribeResult`** lost `kick_left`/`kick_right`/`roulade` and
+  gained `skills`. We never read them; the stream lane is still unused.
+
+Unchanged, and worth recording because it is what the padd pattern buys:
+`robotd/src/sound.rs` is byte-identical, so is the aic3104 init and
+robotd.service; the socket path and its permissions are the same;
+pet-detect still opens capture the same way (it only added a sound
+sentry that skips inference in a silent room); `mediad` does not touch
+audio at all. ADR 0003 stands as written.
+
+One thing to carry to December: the stock walk slot is now
+`velstand.onnx`, with `stand = "none"` (velstand stands on its own). That
+is the gait `[gait]` will be trimmed against, and the only numbers we
+have for it are the twin's (gains 1.63/1.58, `yaw_max` 1.7 — see
+`gait.rs`); the shipped config still corrects nothing, which is the right
+default for a board nobody has measured yet.

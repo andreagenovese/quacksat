@@ -68,6 +68,14 @@ MCP) e il segnale di pensiero (oscillazione della testa in attesa,
 tock di resa a timeout — `[thinking]`). Tutto validato dal vivo su un
 Mac di sviluppo contro servizi reali; vedi README → Stato.
 
+Il 2026-09-23 il pin è passato da `daemon-v0.10.0` a `daemon-v0.14.4`:
+le quattro release upstream ci sfiorano appena (il percorso audio, il
+socket e robotd.service sono invariati), ma `proto::Skill` ora è una
+stringa perché le skill di un robot sono config, quindi `robot.skill`
+chiede `robot.skills` alla connessione e fa rispettare quella lista. Il
+resoconto completo è in
+`docs/study/microduck-ipc-and-packaging.it.md`.
+
 Prossimi passi:
 
 1. **Dicembre 2026**: arriva l'anatra fisica — validazione

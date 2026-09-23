@@ -116,7 +116,7 @@ fn dispatch(method: &str, params: &Value, robot: &SharedRobot) -> Result<Value, 
         }
         "ping" => Ok(json!({})),
         "tools/list" => {
-            let tools: Vec<Value> = tools::catalog(lock(robot).nav.as_ref())
+            let tools: Vec<Value> = tools::catalog(&lock(robot))
                 .as_array()
                 .into_iter()
                 .flatten()

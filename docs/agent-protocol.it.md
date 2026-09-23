@@ -205,7 +205,7 @@ lato satellite.
 | `robot.sound` | `{tag}` ∈ insieme SoundTag di robotd | verso espressivo dell'anatra via `robot.sound` |
 | `robot.look` | `{x, y?, z?}` metri, trunk frame, con clamp | punta lo sguardo su un punto via l'IK di `robot.look` di robotd; il risultato riporta `clamped` se il punto è fuori portata |
 | `robot.head` | `{pitch?, yaw?, roll?}` rad, con clamp | posa espressiva della testa (per guardare qualcosa c'è `robot.look`); gli angoli omessi tornano al centro |
-| `robot.skill` | `{name}` ∈ {ground_pick, kick_left, kick_right, sit_toggle, roulade} | skill one-shot via `robot.do` |
+| `robot.skill` | `{name}` ∈ ciò che ha riportato `robot.skills` (stock: ground_pick, kick_left, kick_right, sit_toggle, roulade) | skill one-shot via `robot.do`; dal demone 0.14 la tabella delle skill è config, quindi l'enum annunciato è la lista del robot e un nome fuori da quella è rifiutato prima del filo |
 | `robot.move` | `{vx?, vy?, vyaw?, duration_s}` (duration ≤ 3.0 s) | camminata a tempo: intenti pompati a ≥20 Hz per la durata, poi silenzio — il deadman resta la rete di sicurezza |
 | `robot.state` | `{}` | sintesi di `robot.state`/`robot.health`: posa, caduto, batteria, modalità |
 | `robot.get_frame` | `{}` | **v1: sempre `ok: false, error: "unsupported"`** (in attesa dell'accesso camera via mediad) |

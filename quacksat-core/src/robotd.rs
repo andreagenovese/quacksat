@@ -185,6 +185,13 @@ mod tests {
             odom: proto::OdomState::default(),
             theremin: None,
             chorale: None,
+            // Since daemon 0.14 (API v24/v25): the mapper's clock and
+            // poses. The satellite reads none of them — the fixture
+            // carries them because the struct is exhaustive.
+            t_ns: 0,
+            imu: None,
+            frames: None,
+            skeleton: Vec::new(),
         }
     }
 
