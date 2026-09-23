@@ -35,7 +35,7 @@ capture_device = "plughw:aic3104,0"
 # not an error: the duck listens and answers, but cannot be sent
 # anywhere, and says so. Set enabled = false to stop asking.
 enabled = true
-socket = "/run/quack-nav.sock"
+socket = "/run/quack-nav/nav.sock"
 
 # Corrections to every walking command (robot.move), applied while
 # walking forward. Off by default: 0, 1, 1.

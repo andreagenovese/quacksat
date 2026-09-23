@@ -72,7 +72,7 @@ is pending — December 2026.
   `quack-navd`, in the [quacknav](https://github.com/andreagenovese/quacknav)
   repo, owns the map client, the cliff guard, the planner, the places
   registry, the explorer and the homecoming, and answers for them on
-  `/run/quack-nav.sock` (NDJSON JSON-RPC, robotd's own wire). quacksat
+  `/run/quack-nav/nav.sock` (NDJSON JSON-RPC, robotd's own wire). quacksat
   probes that socket at startup: if a daemon answers, its tools are
   announced beside the satellite's own; if none does, the duck listens
   and answers but cannot be sent anywhere, and says so. The two repos

@@ -58,7 +58,7 @@ pub struct NavConfig {
 
 impl Default for NavConfig {
     fn default() -> Self {
-        Self { enabled: true, socket: "/run/quack-nav.sock".into() }
+        Self { enabled: true, socket: "/run/quack-nav/nav.sock".into() }
     }
 }
 
@@ -346,7 +346,7 @@ mod tests {
         let text = include_str!("../../quacksat.example.toml");
         let config: Config = toml::from_str(text).expect("quacksat.example.toml must parse");
         assert_eq!(config.backend, Backend::None);
-        assert_eq!(config.nav.socket, "/run/quack-nav.sock");
+        assert_eq!(config.nav.socket, "/run/quack-nav/nav.sock");
     }
 
     /// The default prompt is a multi-line Rust string: a line that

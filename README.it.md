@@ -74,7 +74,7 @@ robot è in attesa — dicembre 2026.
   `quack-navd`, nel repo [quacknav](https://github.com/andreagenovese/quacknav),
   possiede il client della mappa, la guardia del dirupo, il planner, il
   registro dei posti, l'esploratore e l'homecoming, e risponde per loro
-  su `/run/quack-nav.sock` (NDJSON JSON-RPC, il filo di robotd). quacksat
+  su `/run/quack-nav/nav.sock` (NDJSON JSON-RPC, il filo di robotd). quacksat
   sonda quel socket all'avvio: se un demone risponde, i suoi tool vengono
   annunciati accanto a quelli del satellite; se non risponde nessuno, la
   papera ascolta e risponde ma non può essere mandata da nessuna parte, e
