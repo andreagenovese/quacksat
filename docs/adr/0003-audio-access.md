@@ -77,6 +77,33 @@ and STT processing are suppressed; capture stays open but frames are
 dropped. No barge-in in v0. Recommended robot config for satellite duty:
 `audio.greet = false` (avoids the boot quack racing the first utterance).
 
+**Suppressed how, measured 2026-09-23 on a dev Mac.** "While its child is
+playing" was the wrong interval, and the first live conversations died of
+it: the playback program exits while the sound system is still emptying
+its buffer, so the duck took its own acknowledgement in through the
+microphone, the VAD read it as speech, the hangover expired and the turn
+closed on a recording of the quack — before the person had said anything.
+Whisper answers an empty recording with a hallucination rather than an
+error ("Sottotitoli e revisione a cura di QTSS", every time), so the
+failure reads as a bad transcript rather than as silence.
+
+Two rules, in `quacksat_core::listen`:
+
+- a **tail** of `TAIL_FRAMES` (~320 ms) of microphone audio thrown away
+  after the player falls quiet, counted in frames rather than
+  milliseconds because the echo is made of audio, not of wall-clock time;
+- a **minimum listening window** of `MIN_LISTEN_FRAMES` (3 s) during which
+  no end-of-speech closes the turn — speech is then waited out to its end,
+  and silence for ~6 s is a silent turn.
+
+The 320 ms is a Mac's number: `sox` feeding CoreAudio, a laptop speaker
+and its built-in microphone. **On the duck it has to be measured again**
+and will likely be worse — one microphone, no AEC and the speaker a few
+centimetres away is the designed worst case, and the aic3104's own
+buffering is not this machine's. The measurement is: wake the duck, say
+nothing, and read how long the frames after the quack still trip the VAD
+(`RUST_LOG=quacksat_core=debug`).
+
 ### 5. Privileges and unit ordering
 
 quacksat runs as its own user with `SupplementaryGroups=robot audio`

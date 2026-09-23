@@ -83,7 +83,16 @@ Prossimi passi:
 1. **Dicembre 2026**: arriva l'anatra fisica — validazione
    sull'hardware (cattura/riproduzione aic3104 secondo ADR 0003,
    starnazzi veri, cross-build + deploy via `scripts/`, budget CPU
-   della wake word sull'RK3566).
+   della wake word sull'RK3566). Due numeri hanno una data e vanno
+   rimisurati là: `listen::TAIL_FRAMES`, i 320 ms della propria voce che
+   l'anatra butta via, tarati sull'altoparlante e sul microfono di un
+   portatile (l'ADR 0003 §4 dice come misurarli sulla board), e i trim
+   `[gait]`, presi contro `alpha_walking` mentre lo slot walk di serie
+   ora è `velstand.onnx`.
+   Tutto ciò che si prova senza anatra sta in
+   `docs/study/live-without-a-duck.it.md`: un robotd `--fake` vero su un
+   Mac, il satellite contro di lui, e quali rifiuti dimostrano che una
+   lane è viva.
 2. Opzionale, nel repo di Arkimede: la fase 2 (gateway `/voice` nativo,
    tool passthrough sullo shim OpenAI) — i brief vivono lì.
 3. La traccia di mappatura (la mappa, i posti, i viaggi) è cresciuta e

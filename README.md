@@ -87,6 +87,13 @@ is pending — December 2026.
   `robot.go_to`, the map library), spliced into the catalog the agent
   sees. Names are attached to map coordinates, never recognized by
   sight.
+- Turn-taking that survives the duck's own voice: one microphone, no
+  echo cancellation and a speaker beside it (ADR 0003), so after the
+  acknowledgement the satellite throws away the tail its own speaker is
+  still emitting and then holds the mic open for three seconds whatever
+  it hears — speech is waited out to its end. Found by talking to it:
+  before this, a turn closed on the quack and the transcriber answered
+  the silence with a hallucination.
 - Pinned to microduck `daemon-v0.14.4` (2026-09-23): builds and tested
   against the current release. Since 0.14 a robot's skills are its own
   config, so `robot.skill` announces and enforces the list the robot

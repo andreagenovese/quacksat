@@ -51,7 +51,18 @@ training impacchettano esattamente questo notebook.)
   `RUST_LOG=quacksat_core=debug` — ogni rilevamento logga il suo score.
 - Se la tua pronuncia differisce dalle voci sintetiche (accento), di
   solito aiuta riallenare con grafie aggiuntive della frase (es.
-  `"hey daffy"`, `"ei daffy"`) nella lista dei target.
+  `"hey daffy"`, `"ei daffy"`) nella lista dei target. **Misurato il
+  2026-09-23**: un parlante italiano che dice "hey Daffy" all'italiana ha
+  segnato 0,20–0,37 contro una soglia di 0,5 — non un falso negativo da
+  dare in colpa alla stanza, ma una frase che il modello non è stato
+  addestrato a sentire da quella bocca. Il `hey_jarvis_v0.1.onnx` di serie
+  ha svegliato al primo tentativo dalla stessa voce, ed è questa la misura
+  che dice che il problema è il modello e non il microfono. Due vie
+  d'uscita, e la seconda è quella vera: abbassare la soglia appena sotto
+  il proprio punteggio migliore (0,35 ha funzionato, al prezzo di qualche
+  risveglio in più), oppure addestrare la frase che diresti davvero —
+  un'anatra italiana che risponde a "ehi papera" batte un'anatra inglese
+  che risponde a un accento straniero.
 - Se scatta anche una frase *simile* (in pratica: un primo modello
   "hey Daffy" partiva anche con "hey Jarvis"), riallena aggiungendo le
   frasi confondibili ai **negativi avversari** custom — quella

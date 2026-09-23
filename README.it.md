@@ -91,6 +91,13 @@ robot è in attesa — dicembre 2026.
   delle mappe), innestati nel catalogo che l'agente vede. I nomi sono
   legati a coordinate della mappa, mai riconosciuti a vista; un reset
   della mappa li rende stantii finché non vengono reinsegnati.
+- Gestione del turno che sopravvive alla voce dell'anatra stessa: un
+  microfono, nessuna cancellazione d'eco e l'altoparlante di fianco (ADR
+  0003), quindi dopo il verso di conferma il satellite butta via la coda
+  che le sue casse stanno ancora emettendo e poi tiene il microfono
+  aperto per tre secondi qualunque cosa senta — se parli, aspetta la fine
+  della frase. Trovato parlandoci: prima il turno si chiudeva sul quack e
+  il trascrittore rispondeva al silenzio con un'allucinazione.
 - Pin su microduck `daemon-v0.14.4` (2026-09-23): compila ed è testato
   contro la release corrente. Dalla 0.14 le skill di un robot sono sua
   config, quindi `robot.skill` annuncia e fa rispettare la lista che il

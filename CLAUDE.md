@@ -82,7 +82,15 @@ Next:
 1. **December 2026**: the physical duck arrives — on-hardware
    validation (aic3104 capture/playback per ADR 0003, real chirps,
    cross-build + deploy via `scripts/`, wake-word CPU budget on the
-   RK3566).
+   RK3566). Two numbers come with dates and have to be measured again
+   there: `listen::TAIL_FRAMES`, 320 ms of the duck's own voice thrown
+   away, tuned on a laptop's speaker and microphone (ADR 0003 §4 says how
+   to measure it on the board), and the `[gait]` trims, which were taken
+   against `alpha_walking` while the stock walk slot is `velstand.onnx`
+   now.
+   Everything testable without the duck is in
+   `docs/study/live-without-a-duck.md`: a real robotd `--fake` on a Mac,
+   the satellite against it, and which refusals prove a lane is alive.
 2. Optional, in the Arkimede repo: phase 2 (native `/voice` gateway,
    tool passthrough on the OpenAI shim) — briefs live there.
 3. The mapping track (the map, the places, the journeys) grew up and

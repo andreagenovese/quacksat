@@ -83,6 +83,34 @@ scartati. Nessun barge-in nella v0. Config robot consigliata per il ruolo
 satellite: `audio.greet = false` (evita che lo starnazzo di boot faccia a
 gara con la prima frase).
 
+**Soppressi come, misurato il 2026-09-23 su un Mac di sviluppo.** "Mentre
+il figlio riproduce" era l'intervallo sbagliato, e le prime conversazioni
+dal vivo ci sono morte sopra: il programma di riproduzione esce mentre il
+sistema audio sta ancora svuotando il suo buffer, quindi l'anatra si
+riprendeva il proprio verso dal microfono, il VAD lo leggeva come voce, la
+coda di silenzio scadeva e il turno si chiudeva su una registrazione del
+quack — prima che la persona avesse detto qualcosa. A una registrazione
+vuota whisper risponde con un'allucinazione invece che con un errore
+("Sottotitoli e revisione a cura di QTSS", ogni volta), quindi il guasto
+si legge come una trascrizione sbagliata e non come silenzio.
+
+Due regole, in `quacksat_core::listen`:
+
+- una **coda** di `TAIL_FRAMES` (~320 ms) di audio del microfono buttata
+  via dopo che il player tace, contata in frame e non in millisecondi
+  perché l'eco è fatta di audio, non di tempo d'orologio;
+- una **finestra minima di ascolto** di `MIN_LISTEN_FRAMES` (3 s) durante
+  la quale nessuna fine di parlato chiude il turno — il parlato viene poi
+  atteso fino alla sua fine, e ~6 s di silenzio sono un turno vuoto.
+
+I 320 ms sono un numero da Mac: `sox` che alimenta CoreAudio, l'altoparlante
+di un portatile e il suo microfono interno. **Sull'anatra vanno rimisurati**
+e saranno probabilmente peggiori — un microfono solo, nessuna AEC e
+l'altoparlante a pochi centimetri sono il caso peggiore per progetto, e il
+buffering dell'aic3104 non è quello di questa macchina. La misura è:
+svegliare l'anatra, non dire niente, e leggere per quanto le frame dopo il
+quack fanno ancora scattare il VAD (`RUST_LOG=quacksat_core=debug`).
+
 ### 5. Privilegi e ordinamento della unit
 
 quacksat gira come utente proprio con `SupplementaryGroups=robot audio`

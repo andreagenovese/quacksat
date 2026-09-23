@@ -48,7 +48,17 @@ wrap this exact notebook.)
   `RUST_LOG=quacksat_core=debug` — every detection logs its score.
 - If your pronunciation differs from the synthetic voices (accent), a
   retrain with extra phrase spellings (e.g. `"hey daffy"`, `"ei daffy"`)
-  in the target list usually helps.
+  in the target list usually helps. **Measured, 2026-09-23**: an Italian
+  speaker saying "hey Daffy" the Italian way scored 0.20–0.37 against a
+  0.5 threshold — never a false negative you can blame on the room, just
+  a phrase the model was not trained to hear from that mouth. The stock
+  `hey_jarvis_v0.1.onnx` woke on the first try from the same voice, which
+  is the measurement that says the problem is the model and not the
+  microphone. Two ways out, and the second is the real one: lower the
+  threshold to just under your best score (0.35 worked, at the price of
+  accepting more false wakes), or train the phrase you would actually
+  say — an Italian duck answering to "ehi papera" beats an English duck
+  answering to a foreign accent.
 - If a *similar* phrase also triggers (in practice: a first "hey Daffy"
   model fired on "hey Jarvis" too), retrain adding the confusable
   phrases to the custom **adversarial negatives** — that separation is
