@@ -20,14 +20,9 @@ use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::tools::{self, Robot};
-use quacksat_core::vad::{Vad, VadEvent};
+use quacksat_core::listen::{Listened, Listening};
 use quacksat_core::wake;
 use serde_json::{Value, json};
-
-/// Same utterance segmentation as the agent backend.
-const UTTERANCE_HANGOVER_FRAMES: u32 = 25;
-const NO_SPEECH_FRAMES: u32 = 187;
-const MAX_UTTERANCE_FRAMES: u32 = 469;
 
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
     let control: mcp::SharedRobot =
@@ -135,38 +130,32 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
     }
 }
 
-/// Record one utterance from the mic: VAD-segmented, with the same
-/// no-speech and max-length guards as the agent backend.
+/// Record one utterance from the mic, on [`Listening`]'s window: the
+/// same rule the agent backend streams by.
 fn record_utterance(
     frames: &mpsc::Receiver<Vec<i16>>,
     player: &mut Player,
 ) -> anyhow::Result<Option<Vec<i16>>> {
-    let mut vad = Vad::with_hangover(UTTERANCE_HANGOVER_FRAMES);
+    let mut listening = Listening::new();
     let mut audio: Vec<i16> = Vec::new();
-    let mut speech_seen = false;
-    let mut count: u32 = 0;
 
     loop {
         let Ok(frame) = frames.recv() else {
             anyhow::bail!("capture channel closed");
         };
-        // The wake ack is still sounding: the mic hears it (no AEC) and
-        // the VAD would take it for speech and close the turn early.
+        // The acknowledgement is sounding: the mic hears it (no AEC) and
+        // the VAD would take it for speech. `deafen`, not a plain skip —
+        // the program exits before the sound does, so the frames just
+        // after it go too (`listen::TAIL_FRAMES`).
         if player.is_playing() {
+            listening.deafen();
             continue;
         }
         audio.extend_from_slice(&frame);
-        count += 1;
-        match vad.feed(&frame) {
-            Some(VadEvent::SpeechStart) => speech_seen = true,
-            Some(VadEvent::SpeechEnd) => return Ok(Some(audio)),
-            None => {}
-        }
-        if !speech_seen && count >= NO_SPEECH_FRAMES {
-            return Ok(None);
-        }
-        if count >= MAX_UTTERANCE_FRAMES {
-            return Ok(Some(audio));
+        match listening.feed(&frame) {
+            Listened::Open => {}
+            Listened::Done => return Ok(Some(audio)),
+            Listened::Silent => return Ok(None),
         }
     }
 }

@@ -137,6 +137,15 @@ impl Player {
         }
     }
 
+    /// Whether the playback program is still running.
+    ///
+    /// **Not the same as "the room is quiet".** The program exits while
+    /// the sound system is still emptying its buffer, so a listening path
+    /// must throw away a few frames after this turns false — the duck has
+    /// one microphone, no echo cancellation (ADR 0003) and a speaker
+    /// beside it, and those frames are its own voice.
+    /// `quacksat_core::listen::TAIL_FRAMES` is how many, and
+    /// [`crate::listen::Listening::deafen`] is how a caller says so.
     pub fn is_playing(&mut self) -> bool {
         match &mut self.child {
             Some(child) => match child.try_wait() {

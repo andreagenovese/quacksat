@@ -151,7 +151,9 @@ fn full_conversation_flow() {
     for _ in 0..12 {
         frames_tx.send(loud_frame()).unwrap();
     }
-    for _ in 0..30 {
+    // To the end of the listening window: a turn stays open for
+    // MIN_LISTEN_FRAMES whatever it hears (`quacksat_core::listen`).
+    for _ in 0..quacksat_core::listen::MIN_LISTEN_FRAMES + 10 {
         frames_tx.send(quiet_frame()).unwrap();
     }
 

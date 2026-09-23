@@ -13,7 +13,7 @@ use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::robotd::Control;
 use quacksat_core::thinking::ThinkingPose;
-use quacksat_core::vad::{Vad, VadEvent};
+use quacksat_core::listen::{Listened, Listening};
 use quacksat_core::wake::WakeDetector;
 use serde_json::{Value, json};
 use tungstenite::stream::MaybeTlsStream;
@@ -42,14 +42,8 @@ enum Mic {
 /// ~320 ms of pre-roll flushed on wake, as in the wyoming backend.
 const PREROLL_FRAMES: usize = 10;
 const POLL: Duration = Duration::from_millis(50);
-/// End-of-utterance silence (~800 ms at 32 ms/frame): long enough that a
-/// natural pause between the wake phrase and the command does not close
-/// the turn before the command is spoken.
-const UTTERANCE_HANGOVER_FRAMES: u32 = 25;
-/// Give up on an utterance if no speech starts within this many frames
-/// (~6 s) or it runs longer than this (~15 s).
-const NO_SPEECH_FRAMES: u32 = 187;
-const MAX_UTTERANCE_FRAMES: u32 = 469;
+// When the mic counts, how long it stays open and what closes the turn
+// live in `quacksat_core::listen`, shared with the direct backend.
 
 type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
@@ -81,10 +75,8 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
     )?;
 
     let mut mic = Mic::Idle;
-    let mut vad = Vad::new();
+    let mut listening = Listening::new();
     let mut preroll: VecDeque<Vec<i16>> = VecDeque::with_capacity(PREROLL_FRAMES);
-    let mut streamed_frames: u32 = 0;
-    let mut speech_seen = false;
     let mut playing_tts = false;
     let mut listen_after_tts = false;
     let mut pose = ThinkingPose::from_config(&deps.config.thinking);
@@ -113,12 +105,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         if playing_tts {
                             listen_after_tts = true;
                         } else if mic == Mic::Idle {
-                            enter_streaming(
-                                &mut mic,
-                                &mut vad,
-                                &mut streamed_frames,
-                                &mut speech_seen,
-                            );
+                            enter_streaming(&mut mic, &mut listening);
                             tracing::info!("listening (bridge request)");
                         }
                     }
@@ -148,12 +135,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         playing_tts = false;
                         tracing::info!("tts played");
                         if std::mem::take(&mut listen_after_tts) {
-                            enter_streaming(
-                                &mut mic,
-                                &mut vad,
-                                &mut streamed_frames,
-                                &mut speech_seen,
-                            );
+                            enter_streaming(&mut mic, &mut listening);
                             tracing::info!("listening (follow-up turn)");
                         }
                     }
@@ -255,7 +237,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                             &mut ws,
                             &json!({"type": "wake", "model": model, "score": score}),
                         )?;
-                        enter_streaming(&mut mic, &mut vad, &mut streamed_frames, &mut speech_seen);
+                        enter_streaming(&mut mic, &mut listening);
                         for buffered in preroll.drain(..) {
                             send_audio(&mut ws, &buffered)?;
                         }
@@ -268,33 +250,32 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                     }
                 }
                 Mic::Streaming => {
-                    // The local wake ack is still sounding: the mic hears
-                    // it (no AEC) and the VAD would take it for speech.
+                    // The local wake ack is sounding: the mic hears it
+                    // (no AEC) and the VAD would take it for speech.
+                    // `deafen`, not a plain skip — the program exits
+                    // before the sound does, so the frames just after it
+                    // go too (`listen::TAIL_FRAMES`).
                     if deps.player.is_playing() {
+                        listening.deafen();
                         continue;
                     }
                     send_audio(&mut ws, &frame)?;
-                    streamed_frames += 1;
-                    match vad.feed(&frame) {
-                        Some(VadEvent::SpeechStart) => speech_seen = true,
-                        Some(VadEvent::SpeechEnd) => {
+                    match listening.feed(&frame) {
+                        Listened::Open => {}
+                        Listened::Done => {
                             send_json(&mut ws, &json!({"type": "utterance.end"}))?;
                             stop_streaming(&mut mic, deps);
                             pose.begin();
-                            continue;
                         }
-                        None => {}
-                    }
-                    let timed_out = (!speech_seen && streamed_frames >= NO_SPEECH_FRAMES)
-                        || streamed_frames >= MAX_UTTERANCE_FRAMES;
-                    if timed_out {
-                        tracing::debug!(streamed_frames, speech_seen, "utterance timeout");
-                        send_json(&mut ws, &json!({"type": "utterance.end"}))?;
-                        stop_streaming(&mut mic, deps);
-                        // A silent turn gets no answer: expecting one would
-                        // end in a spurious sad tock.
-                        if speech_seen {
-                            pose.begin();
+                        Listened::Silent => {
+                            tracing::debug!(
+                                frames = listening.frames(),
+                                "utterance timeout"
+                            );
+                            send_json(&mut ws, &json!({"type": "utterance.end"}))?;
+                            stop_streaming(&mut mic, deps);
+                            // A silent turn gets no answer: expecting one
+                            // would end in a spurious sad tock.
                         }
                     }
                 }
@@ -303,11 +284,9 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
     }
 }
 
-fn enter_streaming(mic: &mut Mic, vad: &mut Vad, streamed: &mut u32, speech_seen: &mut bool) {
+fn enter_streaming(mic: &mut Mic, listening: &mut Listening) {
     *mic = Mic::Streaming;
-    *vad = Vad::with_hangover(UTTERANCE_HANGOVER_FRAMES);
-    *streamed = 0;
-    *speech_seen = false;
+    *listening = Listening::new();
 }
 
 fn stop_streaming(mic: &mut Mic, deps: &mut Deps) {

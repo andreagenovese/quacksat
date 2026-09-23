@@ -14,6 +14,7 @@ use duck_ipc_proto as proto;
 use quacksat_core::audio::{FRAME_SAMPLES, PIPELINE_RATE};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
+use quacksat_core::listen::TAIL_FRAMES;
 use quacksat_core::robotd::{Control, Lane};
 use quacksat_core::thinking::ThinkingPose;
 use quacksat_core::wake::WakeDetector;
@@ -112,6 +113,7 @@ fn event_loop(
     deps: &mut Deps,
 ) -> anyhow::Result<()> {
     let mut mode = Mode::Paused;
+    let mut deaf: u32 = 0;
     let mut preroll = std::collections::VecDeque::with_capacity(PREROLL_FRAMES);
     let mut pose = ThinkingPose::from_config(&deps.config.thinking);
     let reply_timeout = std::time::Duration::from_secs_f32(deps.config.thinking.timeout_s);
@@ -150,7 +152,9 @@ fn event_loop(
                     return Ok(());
                 }
             }
-            Input::Frame(frame) => handle_frame(writer, &frame, &mut mode, &mut preroll, deps)?,
+            Input::Frame(frame) => {
+                handle_frame(writer, &frame, &mut mode, &mut preroll, &mut deaf, deps)?
+            }
         }
     }
 }
@@ -255,13 +259,22 @@ fn handle_frame(
     frame: &[i16],
     mode: &mut Mode,
     preroll: &mut std::collections::VecDeque<Vec<i16>>,
+    // Frames still to be thrown away because the duck was talking; see
+    // `TAIL_FRAMES`.
+    deaf: &mut u32,
     deps: &mut Deps,
 ) -> anyhow::Result<()> {
     match mode {
         Mode::Paused => {}
         Mode::Waiting => {
-            // Suppress the wake word while the duck itself is talking.
+            // Suppress the wake word while the duck itself is talking,
+            // and for the tail after its player falls quiet: the program
+            // exits before the sound does.
             if deps.player.is_playing() {
+                *deaf = TAIL_FRAMES;
+            }
+            if *deaf > 0 {
+                *deaf -= 1;
                 return Ok(());
             }
             if deps.detector.feed(frame) {
@@ -305,8 +318,15 @@ fn handle_frame(
             }
         }
         Mode::Streaming => {
-            // Skip frames while the local wake ack rings (no AEC).
-            if !deps.player.is_playing() {
+            // Skip frames while the local wake ack is audible (no AEC):
+            // the tail after the program exits counts too, and Home
+            // Assistant's own endpointing would read it as speech.
+            if deps.player.is_playing() {
+                *deaf = TAIL_FRAMES;
+            }
+            if *deaf > 0 {
+                *deaf -= 1;
+            } else {
                 write_chunk(writer, frame)?;
             }
         }

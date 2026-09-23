@@ -9,6 +9,7 @@ use std::sync::mpsc::sync_channel;
 use quacksat_backend_agent::session::{Deps, run_session};
 use quacksat_core::audio::FRAME_SAMPLES;
 use quacksat_core::config::Config;
+use quacksat_core::listen::MIN_LISTEN_FRAMES;
 use quacksat_core::playback::Player;
 use quacksat_core::tools::Robot;
 use quacksat_core::wake;
@@ -147,9 +148,10 @@ fn full_conversation_flow() {
         for _ in 0..9 {
             frames_tx.send(loud_frame()).unwrap();
         }
-        // Silence long enough for the VAD hangover (25 frames) to
-        // close the utterance.
-        for _ in 0..30 {
+        // Silence to the end of the listening window: the turn is held
+        // open for MIN_LISTEN_FRAMES whatever it hears, so the hangover
+        // alone no longer closes it (`quacksat_core::listen`).
+        for _ in 0..MIN_LISTEN_FRAMES + 10 {
             frames_tx.send(quiet_frame()).unwrap();
         }
 
@@ -183,7 +185,11 @@ fn full_conversation_flow() {
         assert_eq!(pong["type"], "pong");
         assert_eq!(pong["text"], "alive");
 
-        // The follow-up turn streams without any wake event.
+        // The follow-up turn streams without any wake event — but not
+        // before the duck's own reply has stopped coming out of the
+        // speaker: `is_sounding` holds the mic shut for the tail after
+        // the playback program exits, and these frames are burst-fed.
+        std::thread::sleep(std::time::Duration::from_millis(400));
         for _ in 0..6 {
             frames_tx.send(loud_frame()).unwrap();
         }
@@ -226,6 +232,12 @@ fn reply_timeout_ends_with_sad_ack() {
     let mut perms = std::fs::metadata(&script).unwrap().permissions();
     perms.set_mode(0o755);
     std::fs::set_permissions(&script, perms).unwrap();
+    // Run it once and wipe what that wrote: macOS inspects a freshly
+    // written executable on its first exec, which outlasts the player's
+    // open check — the ack child then looks alive while the test bursts
+    // its utterance in, and the half-duplex gate eats the lot.
+    std::process::Command::new(&script).status().unwrap();
+    std::fs::write(&plays, "").unwrap();
     let aplay = script.to_str().unwrap().to_string();
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -282,10 +294,10 @@ fn reply_timeout_ends_with_sad_ack() {
         // half-duplex gate would otherwise drain them all away while
         // the ack child lingers.
         std::thread::sleep(std::time::Duration::from_millis(500));
-        for _ in 0..8 {
+        for _ in 0..20 {
             frames_tx.send(loud_frame()).unwrap();
         }
-        for _ in 0..30 {
+        for _ in 0..MIN_LISTEN_FRAMES + 10 {
             frames_tx.send(quiet_frame()).unwrap();
         }
         loop {
