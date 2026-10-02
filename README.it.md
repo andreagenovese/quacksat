@@ -45,6 +45,7 @@ systemd/            quacksat.service unit
 scripts/            deploy scripts for the Radxa Zero 3 / the duck
 docs/study/         study notes on the Microduck software stack
 docs/adr/           architecture decision records
+docs/todo.it.md     lavoro aperto
 ```
 
 ## Stato
