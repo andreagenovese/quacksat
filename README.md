@@ -80,6 +80,11 @@ is pending — December 2026.
   share no code — only robotd's protocol — so neither has to be cloned
   to install the other. What the navigation does, and three weeks of
   measurements on the MuJoCo twin, are documented in that repo.
+- A browser page for the duck's daemons is a third repo,
+  [quack-control](https://github.com/andreagenovese/quack-control): the
+  map, places, exploration and the camera today; quacksat shows there as
+  "not available" until it exposes a control socket of its own (status,
+  configuration, later the chat — see [docs/todo.md](docs/todo.md)).
 - Places, mapping and journeys: the duck learns the name of where it
   stands ("this is the kitchen"), answers "where are you", maps a house
   on its own and walks to a place it knows — all of it through the

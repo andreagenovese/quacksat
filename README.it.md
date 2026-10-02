@@ -83,6 +83,11 @@ robot è in attesa — dicembre 2026.
   robotd — quindi nessuno dei due va clonato per installare l'altro. Cosa
   sa fare la navigazione, e tre settimane di misure sul gemello MuJoCo,
   sono documentati in quel repo.
+- Una pagina nel browser per i demoni della papera è un terzo repo,
+  [quack-control](https://github.com/andreagenovese/quack-control): oggi
+  mappa, luoghi, esplorazione e telecamera; quacksat ci compare come "non
+  disponibile" finché non espone un suo socket di controllo (stato,
+  configurazione, poi la chat — vedi [docs/todo.it.md](docs/todo.it.md)).
 - Luoghi, mappatura e viaggi: l'anatra impara il nome del posto in cui si
   trova ("questa è la cucina"), risponde a "dove sei", mappa una casa da
   sola chiedendo "qui dove siamo?" nelle zone senza nome, e cammina fino
