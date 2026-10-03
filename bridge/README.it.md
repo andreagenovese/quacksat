@@ -37,6 +37,16 @@ volta per turno — l'intero giro del protocollo senza dipendenze.
   robot arrivano dal server MCP qui sotto).
 - **LLM nudo**: funziona comunque; solo voce.
 
+## Le frasi della papera (`say`)
+
+Il satellite dice da sé com'è finito un viaggio e perché cammina
+quando nessuno gliel'ha chiesto (`[announce]` di quacksat). Con questo
+bridge le manda come `say` (protocollo v1.1): il bridge le pronuncia
+con il suo TTS, una clip alla volta (mai sopra una risposta), e le
+tiene nella storia della conversazione. `session.ready` elenca la
+feature e riporta `[stt] language`, che il satellite usa per le sue
+frasi quando il suo `[announce] language` non è impostato.
+
 ## Server MCP (tool robot per agenti MCP-native)
 
 Con `[mcp] enabled = true` (richiede `pip install "mcp>=2" uvicorn`) il

@@ -6,8 +6,9 @@
 use std::collections::VecDeque;
 use std::net::TcpStream;
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use quacksat_core::announce::Lang;
 use quacksat_core::audio::{FRAME_SAMPLES, PIPELINE_RATE};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
@@ -42,6 +43,10 @@ enum Mic {
 /// ~320 ms of pre-roll flushed on wake, as in the wyoming backend.
 const PREROLL_FRAMES: usize = 10;
 const POLL: Duration = Duration::from_millis(50);
+/// A `say` the bridge has not answered (no `tts.end`, no `error`) in
+/// this long is given up: the duck goes back to listening for its wake
+/// word, which it does not while a sentence of its own is on its way.
+const SAY_TIMEOUT: Duration = Duration::from_secs(15);
 // When the mic counts, how long it stays open and what closes the turn
 // live in `quacksat_core::listen`, shared with the direct backend.
 
@@ -81,6 +86,13 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
     let mut listen_after_tts = false;
     let mut pose = ThinkingPose::from_config(&deps.config.thinking);
     let reply_timeout = Duration::from_secs_f32(deps.config.thinking.timeout_s);
+    // The duck's own sentences (`quacksat_core::announce`) need a bridge
+    // that speaks them: one that lists `say` in session.ready's
+    // `features`. An older bridge never gets one.
+    let mut bridge_says = false;
+    let mut bridge_lang: Option<String> = None;
+    let mut saying: Option<(String, Instant)> = None;
+    let mut says_sent: u64 = 0;
 
     loop {
         // 1. Socket first, so listen.stop / tool calls beat mic frames.
@@ -99,7 +111,16 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                             .pointer("/agent/name")
                             .and_then(Value::as_str)
                             .unwrap_or("?");
-                        tracing::info!(agent, "session ready");
+                        bridge_says = event
+                            .get("features")
+                            .and_then(Value::as_array)
+                            .is_some_and(|features| features.iter().any(|f| f == "say"));
+                        bridge_lang = event
+                            .get("language")
+                            .and_then(Value::as_str)
+                            .filter(|code| !code.is_empty())
+                            .map(str::to_owned);
+                        tracing::info!(agent, bridge_says, language = ?bridge_lang, "session ready");
                     }
                     "listen.start" => {
                         if playing_tts {
@@ -133,6 +154,7 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                         while deps.frames.try_recv().is_ok() {}
                         deps.detector.reset();
                         playing_tts = false;
+                        saying = None;
                         tracing::info!("tts played");
                         if std::mem::take(&mut listen_after_tts) {
                             enter_streaming(&mut mic, &mut listening);
@@ -172,6 +194,13 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                     "error" => {
                         let message = event.get("message").and_then(Value::as_str).unwrap_or("");
                         tracing::warn!(message, "bridge error");
+                        // A `say` the bridge could not speak: nothing
+                        // will come, the wake word is armed again.
+                        if let Some((id, _)) = &saying
+                            && event.get("id").and_then(Value::as_str) == Some(id.as_str())
+                        {
+                            saying = None;
+                        }
                         if pose.waited().is_some() {
                             pose.end(&mut deps.robot.lane.control);
                             sad_ack(deps);
@@ -211,6 +240,31 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
             sad_ack(deps);
         }
 
+        // Between turns: a sentence of the duck's own (how a journey
+        // ended, why it walks), handed to the bridge to speak.
+        if saying.as_ref().is_some_and(|(_, at)| at.elapsed() > SAY_TIMEOUT) {
+            tracing::warn!("the bridge never spoke the sentence; going on without it");
+            saying = None;
+        }
+        if mic == Mic::Idle
+            && !playing_tts
+            && saying.is_none()
+            && pose.waited().is_none()
+            && let Some(event) = deps.robot.announcer.as_ref().and_then(|a| a.next())
+        {
+            let lang = Lang::resolve(deps.config, bridge_lang.as_deref());
+            let text = event.phrase(lang);
+            if bridge_says {
+                says_sent += 1;
+                let id = format!("say-{says_sent}");
+                tracing::info!(id, text, "announcing");
+                send_json(&mut ws, &json!({"type": "say", "id": id, "text": text, "lang": lang.code()}))?;
+                saying = Some((id, Instant::now()));
+            } else {
+                tracing::info!(text, "not said: the bridge does not speak `say` (no such feature in session.ready)");
+            }
+        }
+
         // 2. Then the mic — draining the whole backlog: the socket poll
         // above blocks up to 50 ms while frames arrive every 32 ms, so
         // one-frame-per-iteration falls behind real time and starves the
@@ -220,6 +274,9 @@ pub fn run_session(mut ws: Ws, deps: &mut Deps) -> anyhow::Result<()> {
                 continue; // deaf while the duck talks (ADR 0003)
             }
             match mic {
+                // A sentence of the duck's own is on its way: no wake
+                // until it has been said (half-duplex).
+                Mic::Idle if saying.is_some() => continue,
                 Mic::Idle => {
                     if deps.detector.feed(&frame) {
                         let model = match deps.config.wake.mode {

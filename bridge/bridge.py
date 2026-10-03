@@ -267,6 +267,9 @@ class Session:
         self.tools = []
         self.history = []
         self.pending_tools = {}
+        # One clip at a time: a turn's reply and a `say` never interleave.
+        self.speaking = asyncio.Lock()
+        self.say_tasks = set()
 
     def openai_tools(self):
         # Dots become underscores (many providers reject dots in function
@@ -362,22 +365,45 @@ class Session:
         if self.config["behavior"]["follow_up"]:
             await self.send({"type": "listen.start"})
 
-    async def speak(self, text):
+    async def speak(self, text, say_id=None):
+        # `say_id`: the clip answers the satellite's `say` (its errors
+        # carry the id, its tts.start names it).
+        tag = {"id": say_id} if say_id is not None else {}
         text = speakable(text)
         if not text:
             # Nothing sayable survived the sanitizer: same as no reply.
-            await self.send({"type": "error", "message": "the agent had nothing to say"})
+            await self.send({"type": "error", "message": "the agent had nothing to say", **tag})
             return
+        async with self.speaking:
+            try:
+                pcm, rate, channels = await self.services.synthesize(text)
+            except Exception as e:  # noqa: BLE001 — a dead TTS must not kill the session
+                log.warning("tts failed: %s", e)
+                await self.send({"type": "error", "message": f"tts failed: {e}", **tag})
+                return
+            start = {"type": "tts.start", "rate": rate, "channels": channels, "format": "s16le"}
+            if say_id is not None:
+                start["say"] = say_id
+            await self.send(start)
+            for i in range(0, len(pcm), 8192):
+                await self.ws.send(pcm[i:i + 8192])
+            await self.send({"type": "tts.end"})
+
+    async def say(self, event):
+        """The satellite's own sentence, outside a turn (protocol v1.1):
+        how a journey ended, why the duck walks on its own. Spoken with
+        this bridge's TTS, and put on the record so the next turn knows
+        what the duck just said."""
+        say_id = str(event.get("id", ""))
+        text = event.get("text", "")
+        log.info("say %s (%s): %s", say_id, event.get("lang", "?"), text)
         try:
-            pcm, rate, channels = await self.services.synthesize(text)
-        except Exception as e:  # noqa: BLE001 — a dead TTS must not kill the session
-            log.warning("tts failed: %s", e)
-            await self.send({"type": "error", "message": f"tts failed: {e}"})
+            await self.speak(text, say_id=say_id)
+        except Exception as e:  # noqa: BLE001 — the socket may be gone
+            log.warning("say %s failed: %s", say_id, e)
             return
-        await self.send({"type": "tts.start", "rate": rate, "channels": channels, "format": "s16le"})
-        for i in range(0, len(pcm), 8192):
-            await self.ws.send(pcm[i:i + 8192])
-        await self.send({"type": "tts.end"})
+        if speakable(text):
+            self.history.append({"role": "assistant", "content": speakable(text)})
 
     async def handle(self):
         async for message in self.ws:
@@ -400,7 +426,15 @@ class Session:
                     event.get("satellite", {}).get("version", "?"),
                     len(self.tools),
                 )
-                await self.send({"type": "session.ready", "version": 1, "agent": {"name": "bridge"}})
+                await self.send({
+                    "type": "session.ready",
+                    "version": 1,
+                    "agent": {"name": "bridge"},
+                    # v1.1: this bridge speaks the satellite's own
+                    # sentences (`say`), in the language its STT is set to.
+                    "features": ["say"],
+                    "language": self.config["stt"].get("language", ""),
+                })
             elif kind == "wake":
                 log.info("wake %s (%s, score %s)", self.name, event.get("model", "?"), event.get("score"))
                 self.audio.clear()
@@ -418,6 +452,10 @@ class Session:
                         "data": event.get("data"),
                         "error": event.get("error"),
                     })
+            elif kind == "say":
+                task = asyncio.create_task(self.say(event))
+                self.say_tasks.add(task)
+                task.add_done_callback(self.say_tasks.discard)
             elif kind == "ping":
                 pong = dict(event)
                 pong["type"] = "pong"

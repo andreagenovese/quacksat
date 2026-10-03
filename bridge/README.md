@@ -35,6 +35,16 @@ the full protocol loop with zero dependencies.
   internal — robot tools reach it via the MCP server below).
 - **Bare LLM**: works too; voice-only.
 
+## The duck's own sentences (`say`)
+
+The satellite says on its own how a journey ended and why it walks
+when nobody asked (quacksat's `[announce]`). With this bridge it sends
+them as `say` (protocol v1.1): the bridge speaks them with its TTS,
+one clip at a time (never over a reply), and keeps them in the
+conversation history. `session.ready` lists the feature and reports
+`[stt] language`, which the satellite uses for its phrases when its
+own `[announce] language` is unset.
+
 ## MCP server (robot tools for MCP-native agents)
 
 With `[mcp] enabled = true` (requires `pip install "mcp>=2" uvicorn`)

@@ -1,6 +1,6 @@
 # quacksat agent protocol — specifica di wire v1
 
-Stato: v1, implementato da `backends/agent`, `backends/direct` e dal bridge di riferimento in `bridge/`. Questa è la traduzione
+Stato: v1 (con l'aggiunta v1.1 `say`, 2026-10-03), implementato da `backends/agent`, `backends/direct` e dal bridge di riferimento in `bridge/`. Questa è la traduzione
 italiana; la copia inglese `agent-protocol.md` è quella canonica.
 Destinatari: implementatori di bridge/agenti (il bridge di riferimento
 in `bridge/`, [Arkimede](https://arkimede.ai/), o qualunque altra cosa).
@@ -134,14 +134,49 @@ pensato per essere letto dall'LLM.
 ### `pong`
 Eco di un `ping` ricevuto, payload incluso.
 
+### `say` (v1.1)
+Una frase che la papera dice da sé, fuori da un turno: com'è finito
+un viaggio su cui era stata mandata ("Sono arrivata in cucina."),
+oppure perché cammina quando nessuno gliel'ha chiesto ("Non sono
+sicura di dove sono: mi guardo intorno."). La compone il satellite
+(frasi fisse, nessun giro dal modello) e il server la pronuncia con il
+suo TTS.
+
+```json
+{"type": "say", "id": "say-3", "text": "Sono arrivata in cucina.", "lang": "it"}
+```
+
+`id` lo sceglie il satellite; `lang` è la lingua della frase (`it`,
+`en`), per un server che sceglie una voce per lingua. Il server
+risponde con una normale clip — `tts.start` (con `"say": id`), frame
+binari, `tts.end` — oppure con un `error` con lo stesso `id` quando non
+può pronunciarla (frase vuota, TTS morto). Un server dovrebbe tenere la
+frase nella storia della conversazione come dell'assistente, così il
+turno successivo sa cosa la papera ha appena detto.
+
+Il satellite manda `say` solo se il server ha elencato `"say"` nelle
+`features` di `session.ready`, e solo tra un turno e l'altro: microfono
+idle, nessuna risposta attesa, nessuna clip in riproduzione. Finché la
+clip non finisce (o non arriva l'`error`, o passano 15 s) non arma la
+wake word, così una frase non viene mai detta sopra l'utente. Un server
+che non elenca la feature non ne riceve mai: il satellite scarta le sue
+frasi e le scrive nel log.
+
 ## Eventi: server → satellite
 
 ### `session.ready`
 Ack di `session.start`.
 
 ```json
-{"type": "session.ready", "version": 1, "agent": {"name": "bridge"}}
+{"type": "session.ready", "version": 1, "agent": {"name": "bridge"},
+ "features": ["say"], "language": "it"}
 ```
+
+`features` (v1.1, opzionale) elenca cosa fa il server oltre la v1:
+`say`, le frasi del satellite stesso. `language` (opzionale) è la
+lingua in cui parla il server; il satellite la usa per quelle frasi
+quando il suo `[announce] language` non è impostato. Un server v1 non
+manda né l'uno né l'altro, e perde solo le frasi.
 
 ### `listen.start` / `listen.stop`
 Aprono/chiudono il microfono del satellite senza wake word. Un
@@ -162,6 +197,8 @@ processare altri eventi che toccano l'audio.
 ```json
 {"type": "tts.start", "rate": 22050, "channels": 1, "format": "s16le"}
 ```
+
+Una clip che risponde a un `say` lo nomina: `"say": "say-3"` (v1.1).
 
 Un nuovo `tts.start` prima che la clip precedente sia terminata uccide
 la riproduzione precedente (regola del figlio unico, ADR 0003).
@@ -239,5 +276,10 @@ Ciò che non è elencato non esiste sul filo; la allowlist del satellite
   rifiuta da sola per nome). Le modifiche additive (nuovi eventi,
   nuovi campi, nuovi tool) sono minor e sicure grazie alle regole di
   ignore.
+- v1.1 (2026-10-03): `say` (satellite → server), `features` e
+  `language` in `session.ready`, `say` in `tts.start`, e `id` in
+  `error` per un `say` che non si è potuto pronunciare. Tutto
+  additivo: un bridge v1 non elenca mai `say`, quindi non ne riceve
+  mai; un satellite v1 non ne manda mai.
 - La separazione eventi/binario mappa 1:1 su datachannel/track WebRTC
   per un futuro binding remoto/full-duplex (ADR 0004 §1).

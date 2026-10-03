@@ -327,3 +327,87 @@ fn reply_timeout_ends_with_sad_ack() {
         satellite.join().unwrap().unwrap();
     });
 }
+
+/// The duck's own sentence (`quacksat_core::announce`): handed to a
+/// bridge that lists `say` in session.ready, in the language it reports,
+/// and the wake word waits until the clip is over; a bridge that does not
+/// list it never gets one.
+#[test]
+fn the_ducks_own_sentence_goes_to_a_bridge_that_says() {
+    use quacksat_core::announce::{Announcer, Event, Job};
+
+    for says in [true, false] {
+        let config: Config = toml::from_str("backend = \"agent\"").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let aplay = fake_aplay(dir.path());
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (_frames_tx, frames_rx) = sync_channel::<Vec<i16>>(256);
+        let announcer = Announcer::detached();
+        announcer.push(Event::Arrived(Job::GoToPlace("cucina".into())));
+
+        std::thread::scope(|scope| {
+            let config_ref = &config;
+            let announcer_ref = &announcer;
+            let satellite = scope.spawn(move || {
+                let (ws, _) = tungstenite::connect(format!("ws://127.0.0.1:{port}")).expect("connect");
+                let mut detector = wake::from_config(&config_ref.wake).unwrap();
+                let mut player = Player::with_program("ignored", &aplay);
+                let mut robot = Robot::detached();
+                robot.announcer = Some(announcer_ref.clone());
+                run_session(
+                    ws,
+                    &mut Deps {
+                        config: config_ref,
+                        frames: &frames_rx,
+                        detector: detector.as_mut(),
+                        player: &mut player,
+                        robot: &mut robot,
+                    },
+                )
+            });
+
+            let (stream, _) = listener.accept().unwrap();
+            let mut bridge = tungstenite::accept(stream).unwrap();
+            let next_json = |bridge: &mut tungstenite::WebSocket<std::net::TcpStream>| -> Value {
+                loop {
+                    match bridge.read().unwrap() {
+                        Message::Text(text) => return serde_json::from_str(&text).unwrap(),
+                        Message::Binary(_) => continue,
+                        other => panic!("unexpected message: {other:?}"),
+                    }
+                }
+            };
+            assert_eq!(next_json(&mut bridge)["type"], "session.start");
+            let ready = if says {
+                json!({"type": "session.ready", "version": 1, "features": ["say"], "language": "it"})
+            } else {
+                json!({"type": "session.ready", "version": 1})
+            };
+            bridge.send(Message::text(ready.to_string())).unwrap();
+
+            if says {
+                let say = next_json(&mut bridge);
+                assert_eq!(say["type"], "say");
+                assert_eq!(say["text"], "Sono arrivata in cucina.");
+                assert_eq!(say["lang"], "it");
+                assert!(say["id"].as_str().is_some_and(|id| !id.is_empty()));
+                let start = json!({"type": "tts.start", "rate": 22_050, "channels": 1, "say": say["id"]});
+                bridge.send(Message::text(start.to_string())).unwrap();
+                bridge.send(Message::binary(vec![0u8; 4410])).unwrap();
+                bridge.send(Message::text(json!({"type": "tts.end"}).to_string())).unwrap();
+            } else {
+                // Give the session time to take the sentence and drop it.
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+            // Nothing else was sent: the next text is the pong.
+            bridge.send(Message::text(json!({"type": "ping", "n": 1}).to_string())).unwrap();
+            assert_eq!(next_json(&mut bridge)["type"], "pong");
+            assert_eq!(announcer.next(), None, "the sentence was taken once");
+
+            bridge.close(None).unwrap();
+            let _ = bridge.read();
+            satellite.join().unwrap().unwrap();
+        });
+    }
+}

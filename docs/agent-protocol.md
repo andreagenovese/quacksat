@@ -1,6 +1,6 @@
 # quacksat agent protocol — wire specification v1
 
-Status: v1, implemented by `backends/agent`, `backends/direct`, and the
+Status: v1 (with the v1.1 addition `say`, 2026-10-03), implemented by `backends/agent`, `backends/direct`, and the
 reference bridge in `bridge/`. Italian copy: `agent-protocol.it.md`.
 Audience: implementers of bridges/agents ([Arkimede](https://arkimede.ai/) or anything else).
 
@@ -126,14 +126,47 @@ LLM to read.
 ### `pong`
 Echo of a received `ping`, payload included.
 
+### `say` (v1.1)
+A sentence the duck says on its own, outside a turn: how a journey
+it was sent on ended ("Sono arrivata in cucina."), or why it walks
+when nobody asked ("Non sono sicura di dove sono: mi guardo
+intorno."). The satellite composes it (fixed phrases, no model round
+trip) and the server speaks it with its TTS.
+
+```json
+{"type": "say", "id": "say-3", "text": "Sono arrivata in cucina.", "lang": "it"}
+```
+
+`id` is chosen by the satellite; `lang` is the phrase's language
+(`it`, `en`), for a server that picks a voice per language. The server
+answers with one ordinary clip — `tts.start` (carrying `"say": id`),
+binary frames, `tts.end` — or with an `error` carrying the same `id`
+when it cannot speak it (an empty sentence, a dead TTS). A server
+should keep the sentence in its conversation history as the
+assistant's, so the next turn knows what the duck just said.
+
+The satellite sends `say` only when the server listed `"say"` in
+`session.ready`'s `features`, and only between turns: mic idle, no
+reply awaited, no clip playing. Until the clip ends (or the `error`
+arrives, or 15 s pass) it does not arm its wake word, so a sentence is
+never spoken over the user. A server that does not list the feature
+never receives one: the satellite drops its sentences and logs them.
+
 ## Events: server → satellite
 
 ### `session.ready`
 Ack of `session.start`.
 
 ```json
-{"type": "session.ready", "version": 1, "agent": {"name": "bridge"}}
+{"type": "session.ready", "version": 1, "agent": {"name": "bridge"},
+ "features": ["say"], "language": "it"}
 ```
+
+`features` (v1.1, optional) lists what the server does beyond v1:
+`say`, the satellite's own sentences. `language` (optional) is the
+language the server's speech is in; the satellite uses it for those
+sentences when its own `[announce] language` is unset. A v1 server
+sends neither, and loses nothing but the sentences.
 
 ### `listen.start` / `listen.stop`
 Open/close the satellite mic without a wake word. `listen.start`
@@ -153,6 +186,8 @@ playback before processing further audio-affecting events.
 ```json
 {"type": "tts.start", "rate": 22050, "channels": 1, "format": "s16le"}
 ```
+
+A clip that answers a `say` names it: `"say": "say-3"` (v1.1).
 
 A new `tts.start` before the previous clip ended kills the previous
 playback (single-child rule, ADR 0003).
@@ -227,5 +262,10 @@ allowlist is exhaustive by construction.
   actually breaks a peer is a shape that moved, and it refuses itself
   by name). Additive changes (new events, new fields, new tools) are
   minor and safe by the ignore rules.
+- v1.1 (2026-10-03): `say` (satellite → server), `session.ready`'s
+  `features` and `language`, `tts.start`'s `say`, and `error`'s `id`
+  for a `say` that could not be spoken. All additive: a v1 bridge
+  never lists `say`, so it never receives one; a v1 satellite never
+  sends one.
 - The event/binary split maps 1:1 onto a WebRTC datachannel/track for
   a future remote/full-duplex binding (ADR 0004 §1).
