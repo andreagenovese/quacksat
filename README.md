@@ -49,9 +49,15 @@ docs/todo.md        open work
 
 ## Status
 
+**v0.1.0-rc1** (2026-10-03), the first release candidate: an install
+package for the duck on every release ([Installing from a
+release](#installing-from-a-release)); what is in it is in the
+[CHANGELOG](CHANGELOG.md), its status and known limits in the
+[release notes](docs/release-notes-v0.1.0-rc1.md).
+
 Working, validated on a development Mac against real services (a Home
-Assistant install, an agent platform, local LLMs). On-robot validation
-is pending — December 2026.
+Assistant install, an agent platform, local LLMs) and with the MuJoCo
+twin of the Microduck. On-robot validation is pending — December 2026.
 
 - Local wake word (openWakeWord models on the pure-Rust tract runtime;
   custom phrases supported — see `docs/custom-wake-word.md`), VAD turn

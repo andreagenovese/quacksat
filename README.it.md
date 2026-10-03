@@ -50,9 +50,15 @@ docs/todo.it.md     lavoro aperto
 
 ## Stato
 
+**v0.1.0-rc1** (2026-10-03), la prima release candidate: un pacchetto
+d'installazione per l'anatra a ogni release ([Installare da una
+release](#installare-da-una-release)); cosa contiene è nel
+[CHANGELOG](CHANGELOG.it.md), lo stato e i limiti noti nelle
+[note di rilascio](docs/release-notes-v0.1.0-rc1.it.md).
+
 Funzionante, validato su un Mac di sviluppo contro servizi reali (un
-Home Assistant, una piattaforma agente, LLM locali). La validazione sul
-robot è in attesa — dicembre 2026.
+Home Assistant, una piattaforma agente, LLM locali) e col gemello MuJoCo
+del Microduck. La validazione sul robot è in attesa — dicembre 2026.
 
 - Wake word locale (modelli openWakeWord sul runtime pure-Rust tract;
   frasi custom supportate — vedi `docs/custom-wake-word.md`),
