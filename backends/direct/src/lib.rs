@@ -16,6 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 
 use duck_ipc_proto as proto;
+use quacksat_core::announce::{Announcer, Lang};
 use quacksat_core::config::Config;
 use quacksat_core::playback::Player;
 use quacksat_core::thinking::ThinkingPose;
@@ -25,8 +26,13 @@ use quacksat_core::wake;
 use serde_json::{Value, json};
 
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
-    let control: mcp::SharedRobot =
-        std::sync::Arc::new(std::sync::Mutex::new(Robot::connect(config)));
+    let mut robot = Robot::connect(config);
+    // What the duck says on its own (how a journey ended, why it walks
+    // when nobody asked): the sentences wait for the idle loop below.
+    let announcer = Announcer::start(config);
+    robot.announcer = announcer.clone();
+    let lang = Lang::resolve(config, None);
+    let control: mcp::SharedRobot = std::sync::Arc::new(std::sync::Mutex::new(robot));
     if config.direct.mcp.enabled {
         anyhow::ensure!(
             !config.direct.mcp.token.is_empty(),
@@ -67,6 +73,19 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
         let Ok(frame) = frames.recv() else {
             anyhow::bail!("capture channel closed");
         };
+        // A sentence of its own — how a journey ended, why it walks —
+        // said here, between turns, never over anyone (half-duplex).
+        if let Some(event) = announcer.as_ref().and_then(Announcer::next) {
+            let phrase = event.phrase(lang);
+            tracing::info!(%phrase, "announcing");
+            speak(config, &mut player, &phrase);
+            // On the record, so "and now go back" has something to
+            // follow.
+            history.push(json!({"role": "assistant", "content": phrase}));
+            while frames.try_recv().is_ok() {}
+            detector.reset();
+            continue;
+        }
         // The duck asking "where am I?" while it maps: the daemon
         // raises it, the satellite speaks it (the split of 2026-09-22).
         if let Some(question) = mcp::lock(&control).nav.as_mut().and_then(|nav| nav.take_question()) {

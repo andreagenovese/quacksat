@@ -73,6 +73,13 @@ impl NavLane {
         }
     }
 
+    /// A lane to the socket without asking anything first: the
+    /// announcer's own, which keeps asking whether the daemon is there
+    /// (it may start after the satellite, or restart under it).
+    pub fn unprobed(socket: &str) -> Self {
+        NavLane { socket: socket.to_owned(), stream: None, next_id: 1, tools: Vec::new() }
+    }
+
     /// The daemon's catalog, as announced at startup.
     pub fn catalog(&self) -> Vec<Value> {
         self.tools.clone()

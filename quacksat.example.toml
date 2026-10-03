@@ -37,6 +37,21 @@ capture_device = "plughw:aic3104,0"
 enabled = true
 socket = "/run/quack-nav/nav.sock"
 
+# What the duck says on its own, between turns: how a journey it was
+# sent on ended ("Sono arrivata in cucina", "Mi sono fermata", ...) and
+# why it walks when nobody asked (the homecoming's search, the
+# relocalization before a journey). The satellite follows quack-navd's
+# robot.map_status for it (every 2 s while something moves, every 10 s
+# otherwise). `direct` speaks with its own TTS; `agent` asks the bridge
+# (`say`, docs/agent-protocol.md v1.1). Fixed phrases in Italian or
+# English: `language` "it" or "en"; empty takes [direct.stt] language,
+# else the language the bridge reports, else English.
+[announce]
+enabled = true
+language = ""
+journeys = true
+own_motion = true
+
 # Corrections to every walking command (robot.move), applied while
 # walking forward. Off by default: 0, 1, 1.
 # A gait that veers when told to go straight gets a yaw trim (rad/s, + =

@@ -6,6 +6,7 @@
 //! satellite works without it. Backends (wyoming, agent, direct)
 //! build on this crate.
 
+pub mod announce;
 pub mod audio;
 pub mod body;
 pub mod config;

@@ -42,6 +42,36 @@ pub struct Config {
     pub nav: NavConfig,
     #[serde(default)]
     pub gait: GaitConfig,
+    /// What the duck says on its own, outside a turn: how a journey it
+    /// was sent on ended, and why it walks when nobody asked
+    /// ([`crate::announce`]).
+    #[serde(default)]
+    pub announce: AnnounceConfig,
+}
+
+/// `[announce]`: the duck's own sentences. A journey started by a tool
+/// call (`robot.go_to`, `robot.map_explore`) answers at once and runs on
+/// in quack-navd; the satellite follows it and says how it ended. And
+/// when quack-navd moves the duck on its own (the homecoming's search,
+/// a relocalization before a job), it says so.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct AnnounceConfig {
+    pub enabled: bool,
+    /// The language of the fixed phrases: "it" or "en" (anything else
+    /// speaks English). Empty: `[direct.stt] language`, else what the
+    /// bridge reports in `session.ready`, else English.
+    pub language: String,
+    /// Say how a journey the satellite started ended.
+    pub journeys: bool,
+    /// Say when the duck moves on its own, and how that ended.
+    pub own_motion: bool,
+}
+
+impl Default for AnnounceConfig {
+    fn default() -> Self {
+        Self { enabled: true, language: String::new(), journeys: true, own_motion: true }
+    }
 }
 
 

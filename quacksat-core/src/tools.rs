@@ -88,6 +88,10 @@ pub struct Robot {
     /// are announced beside the satellite's and executed there
     /// (`quack-navd`, the split of 2026-09-22).
     pub nav: Option<NavLane>,
+    /// What the duck says on its own: told of every job a tool call
+    /// here starts, so it can say how the job ended. Set by the
+    /// backends that can speak outside a turn (`direct`, `agent`).
+    pub announcer: Option<crate::announce::Announcer>,
 }
 
 impl Robot {
@@ -102,6 +106,7 @@ impl Robot {
             gait: config.gait.clone(),
             skills,
             nav: NavLane::probe(&config.nav),
+            announcer: None,
         }
     }
 
@@ -126,6 +131,7 @@ impl Robot {
             gait: crate::config::GaitConfig::default(),
             skills: stock_skills(),
             nav: None,
+            announcer: None,
         }
     }
 }
@@ -241,7 +247,13 @@ pub fn execute(name: &str, args: &Value, robot: &mut Robot) -> Result<Value, Str
     if let Some(nav) = &mut robot.nav
         && nav.handles(name)
     {
-        return nav.call(name, args);
+        let answer = nav.call(name, args);
+        // A journey answers at once and runs on over there: the
+        // announcer follows it and says how it ended (`announce`).
+        if let (Some(announcer), Ok(answer)) = (&robot.announcer, &answer) {
+            announcer.tool_called(name, args, answer);
+        }
+        return answer;
     }
     // Everything below needs the robot, so this is where a lane that
     // died gets one attempt to come back.
