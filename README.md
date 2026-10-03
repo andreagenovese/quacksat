@@ -41,7 +41,7 @@ backends/agent/     AI agent backend (WebSocket to a bridge)
 backends/direct/    self-contained backend (OpenAI-dialect STT/LLM/TTS, no bridge)
 bridge/             minimal reference bridge for the agent backend
 systemd/            quacksat.service unit
-scripts/            deploy scripts for the Radxa Zero 3 / the duck
+scripts/            build, package and install for the duck (Radxa Zero 3)
 docs/study/         study notes on the Microduck software stack
 docs/adr/           architecture decision records
 docs/todo.md        open work
@@ -127,9 +127,28 @@ is pending — December 2026.
   up in
   `docs/study/microduck-ipc-and-packaging.md`.
 
+## Installing from a release
+
+Every release carries an install package for the duck's board:
+`quacksat-<version>-aarch64-linux.tar.gz` with its `.sha256`, from
+[the releases page](https://github.com/andreagenovese/quacksat/releases).
+Download, verify, unpack, then from your computer:
+
+```sh
+./install-on-duck.sh microduck@<duck>     # --dry-run first prints what it would do
+```
+
+No checkout and no build: it installs the binary, the systemd unit, the
+service account and the example config, and downloads the wake-word
+models on the duck. Every step, and what to set in the config (the
+backend, the endpoints and their keys, the wake word, the audio,
+quack-navd's socket, the duck's own announcements), is in the package's
+[README-install.md](scripts/package/README-install.md). The bridge is
+not in it: it runs on a server, from a checkout of the same tag (below).
+
 ## Getting started
 
-### 1. Build and install on the duck
+### 1. Build and install on the duck (from a checkout)
 
 The duck's board is a Radxa Zero 3 (aarch64 Rockchip RK3566) running
 Armbian with the Debian 13 userland. The cross-build needs no Docker:
@@ -139,20 +158,26 @@ binary loads on the board whatever glibc the build host has (on a Mac:
 `rustup toolchain install stable --target aarch64-unknown-linux-gnu`):
 
 ```sh
-scripts/cross-build.sh            # cross-build the release binary
-scripts/deploy.sh <duck-host>     # install everything over ssh
+scripts/cross-build.sh                          # cross-build the release binary
+scripts/install-on-duck.sh microduck@<duck>     # install everything over ssh
 ```
 
-The deploy installs the binary (`/usr/local/bin/quacksat`), the systemd
-unit and its unprivileged service account, a default config at
-`/etc/robot/quacksat.toml` (kept on redeploys — edit it there), and the
-wake-word models in `/var/lib/quacksat/models` — including
-**"hey Daffy"**, quacksat's own wake word, which ships in this repo
-(`models/hey_daffy.onnx`); any extra model in your local `models/`
-(e.g. one trained per `docs/custom-wake-word.md`) rides along. Then:
+The installer (the same script as in the release package; `--dry-run`
+prints every command and connects to nothing) installs the binary
+(`/usr/local/bin/quacksat`), the systemd unit and its unprivileged
+service account, a default config at `/etc/robot/quacksat.toml` (only
+when there is none — edit it there; mode 0640 root:quacksat, as it will
+hold API keys), and the wake-word models in `/var/lib/quacksat/models`
+— including **"hey Daffy"**, quacksat's own wake word, which ships in
+this repo (`models/hey_daffy.onnx`); any extra model in your local
+`models/` (e.g. one trained per `docs/custom-wake-word.md`) rides along,
+and the shared feature models missing there are downloaded on the duck
+by `scripts/fetch-wake-models.sh`, checked against their sha256.
+`scripts/package.sh <version> <binary> <outdir>` packs the release
+package locally. Then:
 
 ```sh
-ssh <duck-host> journalctl -u quacksat -f
+ssh microduck@<duck> journalctl -u quacksat -f
 ```
 
 Pick the backend in the config: `wyoming` needs nothing else on this

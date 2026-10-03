@@ -2,7 +2,10 @@
 
 quacksat's wake detector runs any openWakeWord model: the phrase is just
 an `.onnx` file dropped into the models directory. Pretrained models
-(hey jarvis, alexa, …) come from `scripts/fetch-wake-models.sh`; a custom
+(hey jarvis, alexa, …) come from `scripts/fetch-wake-models.sh` — mind
+their licence: openWakeWord publishes its pre-trained models under CC
+BY-NC-SA 4.0, non-commercial, which is also why quacksat's release
+package carries no model file and the installer downloads them; a custom
 phrase is trained once with openWakeWord's official pipeline — free on
 Google Colab, no local GPU needed. (Paid sites offering the same training
 wrap this exact notebook.)

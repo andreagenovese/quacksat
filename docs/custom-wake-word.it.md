@@ -3,7 +3,11 @@
 Il rilevatore di quacksat esegue qualunque modello openWakeWord: la frase
 è solo un file `.onnx` da mettere nella directory dei modelli. I modelli
 preallenati (hey jarvis, alexa, …) arrivano da
-`scripts/fetch-wake-models.sh`; una frase personalizzata si allena una
+`scripts/fetch-wake-models.sh` — attenzione alla licenza: openWakeWord
+pubblica i suoi modelli preallenati sotto CC BY-NC-SA 4.0, non
+commerciale, ed è anche per questo che il pacchetto di release di
+quacksat non contiene modelli e l'installer li scarica; una frase
+personalizzata si allena una
 volta sola con la pipeline ufficiale di openWakeWord — gratis su Google
 Colab, senza GPU locale. (I siti a pagamento che offrono lo stesso
 training impacchettano esattamente questo notebook.)

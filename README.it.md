@@ -42,7 +42,7 @@ backends/agent/     backend agente AI (WebSocket verso un bridge)
 backends/direct/    backend autosufficiente (STT/LLM/TTS in dialetto OpenAI, senza bridge)
 bridge/             minimal reference bridge for the agent backend
 systemd/            quacksat.service unit
-scripts/            deploy scripts for the Radxa Zero 3 / the duck
+scripts/            build, pacchetto e installazione per l'anatra (Radxa Zero 3)
 docs/study/         study notes on the Microduck software stack
 docs/adr/           architecture decision records
 docs/todo.it.md     lavoro aperto
@@ -132,9 +132,29 @@ robot è in attesa — dicembre 2026.
   è scritto in
   `docs/study/microduck-ipc-and-packaging.it.md`.
 
+## Installare da una release
+
+Ogni release porta un pacchetto d'installazione per la scheda
+dell'anatra: `quacksat-<versione>-aarch64-linux.tar.gz` col suo
+`.sha256`, dalla [pagina delle release](https://github.com/andreagenovese/quacksat/releases).
+Si scarica, si verifica, si scompatta, poi dal tuo computer:
+
+```sh
+./install-on-duck.sh microduck@<anatra>   # prima --dry-run stampa cosa farebbe
+```
+
+Niente copia del repository e niente compilazione: installa il binario,
+la unit systemd, l'account di servizio e la config d'esempio, e scarica
+i modelli della wake word sull'anatra. Ogni passo, e cosa impostare nella
+config (il backend, gli endpoint e le loro chiavi, la wake word, l'audio,
+il socket di quack-navd, gli annunci dell'anatra), è nel
+[README-install.it.md](scripts/package/README-install.it.md) del
+pacchetto. Il bridge non c'è: gira su un server, da una copia del
+repository allo stesso tag (sotto).
+
 ## Come iniziare
 
-### 1. Build e installazione sull'anatra
+### 1. Build e installazione sull'anatra (da una copia del repository)
 
 La board dell'anatra è una Radxa Zero 3 (Rockchip RK3566 aarch64) con
 Armbian e lo userland Debian 13. La cross-build non chiede Docker:
@@ -144,22 +164,27 @@ compila (su un Mac: `brew install rustup zig cargo-zigbuild`, poi
 `rustup toolchain install stable --target aarch64-unknown-linux-gnu`):
 
 ```sh
-scripts/cross-build.sh            # cross-build del binario release
-scripts/deploy.sh <host-anatra>   # installa tutto via ssh
+scripts/cross-build.sh                          # cross-build del binario release
+scripts/install-on-duck.sh microduck@<anatra>   # installa tutto via ssh
 ```
 
-Il deploy installa il binario (`/usr/local/bin/quacksat`), la unit
-systemd col suo account di servizio non privilegiato, una config di
-default in `/etc/robot/quacksat.toml` (conservata ai redeploy —
-modificala lì), e i modelli wake word in `/var/lib/quacksat/models` — inclusa
-**«hey Daffy»**, la wake word propria di quacksat, che è nel repo
-(`models/hey_daffy.onnx`); ogni altro modello nella tua cartella
-`models/` locale (ad es. allenato secondo `docs/custom-wake-word.md`)
-viaggia insieme.
-Poi:
+L'installer (lo stesso script del pacchetto di release; `--dry-run`
+stampa ogni comando e non si collega a niente) installa il binario
+(`/usr/local/bin/quacksat`), la unit systemd col suo account di servizio
+non privilegiato, una config di default in `/etc/robot/quacksat.toml`
+(solo se non c'è — modificala lì; modo 0640 root:quacksat, perché
+conterrà delle API key), e i modelli wake word in
+`/var/lib/quacksat/models` — inclusa **«hey Daffy»**, la wake word
+propria di quacksat, che è nel repo (`models/hey_daffy.onnx`); ogni
+altro modello nella tua cartella `models/` locale (ad es. allenato
+secondo `docs/custom-wake-word.md`) viaggia insieme, e i modelli di
+feature condivisi che lì mancano li scarica sull'anatra
+`scripts/fetch-wake-models.sh`, verificati col loro sha256.
+`scripts/package.sh <versione> <binario> <dir>` prepara il pacchetto di
+release in locale. Poi:
 
 ```sh
-ssh <host-anatra> journalctl -u quacksat -f
+ssh microduck@<anatra> journalctl -u quacksat -f
 ```
 
 Scegli il backend nella config: `wyoming` non richiede altro da questa
