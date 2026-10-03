@@ -93,6 +93,21 @@ is pending — December 2026.
   `robot.go_to`, the map library), spliced into the catalog the agent
   sees. Names are attached to map coordinates, never recognized by
   sight.
+- What the duck says on its own (`[announce]`, 2026-10-03): a journey
+  answers at once and runs on in quack-navd, so the satellite follows
+  `robot.map_status` (every 2 s while something moves, every 10 s
+  otherwise, on a lane of its own) and says how a job it started
+  ended, in a short fixed phrase — "Sono arrivata in cucina", "Non
+  trovo una strada per la cucina", "Mi sono fermata", "Ho esplorato per
+  10 minuti, la casa è mappata al 72 per cento" — and when quack-navd
+  moves the duck on its own: the homecoming's search at boot ("Non
+  sono sicura di dove sono: mi guardo intorno" … "Mi sono ritrovata"),
+  the relocalization before a journey ("Prima di partire mi guardo
+  intorno per ritrovarmi"). Italian and English. Said between turns,
+  never over anyone, each once: `direct` speaks with its own TTS,
+  `agent` hands the sentence to the bridge as a `say` (protocol v1.1),
+  which a bridge that does not list the feature never receives. A stop
+  the agent itself sent is not said again: its reply already says it.
 - Turn-taking that survives the duck's own voice: one microphone, no
   echo cancellation and a speaker beside it (ADR 0003), so after the
   acknowledgement the satellite throws away the tail its own speaker is

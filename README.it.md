@@ -97,6 +97,22 @@ robot è in attesa — dicembre 2026.
   delle mappe), innestati nel catalogo che l'agente vede. I nomi sono
   legati a coordinate della mappa, mai riconosciuti a vista; un reset
   della mappa li rende stantii finché non vengono reinsegnati.
+- Ciò che la papera dice da sé (`[announce]`, 2026-10-03): un viaggio
+  risponde subito e prosegue in quack-navd, quindi il satellite segue
+  `robot.map_status` (ogni 2 s mentre qualcosa si muove, ogni 10 s
+  altrimenti, su una corsia tutta sua) e dice com'è finito un lavoro
+  che ha avviato lui, con una frase fissa e breve — "Sono arrivata in
+  cucina", "Non trovo una strada per la cucina", "Mi sono fermata", "Ho
+  esplorato per 10 minuti, la casa è mappata al 72 per cento" — e
+  quando quack-navd muove la papera da sola: la ricerca del ritorno a
+  casa all'avvio ("Non sono sicura di dove sono: mi guardo intorno" …
+  "Mi sono ritrovata"), la rilocalizzazione prima di un viaggio ("Prima
+  di partire mi guardo intorno per ritrovarmi"). Italiano e inglese.
+  Detto tra un turno e l'altro, mai sopra qualcuno, una volta sola:
+  `direct` parla con il suo TTS, `agent` passa la frase al bridge come
+  `say` (protocollo v1.1), che un bridge senza quella feature non
+  riceve mai. Uno stop mandato dall'agente stesso non viene ripetuto:
+  lo dice già la sua risposta.
 - Gestione del turno che sopravvive alla voce dell'anatra stessa: un
   microfono, nessuna cancellazione d'eco e l'altoparlante di fianco (ADR
   0003), quindi dopo il verso di conferma il satellite butta via la coda
