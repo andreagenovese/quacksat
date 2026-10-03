@@ -1,0 +1,128 @@
+# Every push and pull request: the tests (the wake-word ones with the
+# openWakeWord models fetched first), the bridge's Python compiled, and
+# the board's aarch64 build packed for install; a v* tag also publishes
+# that build on the release.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # quacksat-core/tests/wake_oww.rs skips without them: the two
+      # shared feature models and hey_jarvis, each checked against its
+      # sha256 (hey_daffy.onnx is in the repository).
+      - name: Wake-word models
+        run: sh scripts/fetch-wake-models.sh models
+
+      - name: Build
+        run: cargo build --workspace --all-targets
+
+      - name: Tests
+        run: cargo test --workspace
+
+      # The reference bridge and the CI's own scripts at least compile.
+      - name: Python
+        run: python3 -m py_compile bridge/bridge.py bridge/mcp_server.py scripts/ci/release_body.py
+
+  # quacksat for the duck's board (Radxa Zero 3, RK3566, aarch64 Linux),
+  # built the way scripts/cross-build.sh builds it: cargo-zigbuild, glibc
+  # floor 2.31. Every push leaves it as an artifact, bare and as the
+  # install package; a v* tag also attaches both to the GitHub release
+  # (the `release` job below).
+  aarch64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: aarch64
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.14.1
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+
+      - name: Cross-build
+        run: scripts/cross-build.sh
+
+      # An ARM aarch64 ELF, and no glibc symbol newer than the floor.
+      - name: Check the binary
+        run: |
+          bin=target/aarch64-unknown-linux-gnu/release/quacksat
+          file "$bin" | tee /dev/stderr | grep -q 'ARM aarch64'
+          newest=$(readelf -V "$bin" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)
+          echo "newest glibc symbol: $newest"
+          [ "$(printf '%s\nGLIBC_2.31\n' "$newest" | sort -V | tail -1)" = GLIBC_2.31 ]
+          mkdir -p dist
+          cp "$bin" dist/quacksat-aarch64-linux
+          (cd dist && sha256sum quacksat-aarch64-linux > quacksat-aarch64-linux.sha256)
+
+      # The install package (scripts/package.sh): the binary with the unit,
+      # the account, the example config, install-on-duck.sh,
+      # fetch-wake-models.sh and the install README, so a release installs
+      # without a checkout. A tag names it after itself (v0.1.0-rc1 ->
+      # 0.1.0-rc1); any other push after Cargo.toml's version and the
+      # commit.
+      - name: Package
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)-dev.${GITHUB_SHA::7}"
+          fi
+          scripts/package.sh "$version" target/aarch64-unknown-linux-gnu/release/quacksat dist
+          tar tzvf dist/quacksat-"$version"-aarch64-linux.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quacksat-aarch64-linux
+          path: dist/
+
+  # A v* tag: the install package, the board's bare binary and their
+  # checksums on the GitHub release, once the tests and the build have
+  # passed. A tag with -rc in it is a prerelease.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, aarch64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: quacksat-aarch64-linux
+          path: dist
+
+      # The release's text is docs/release-notes-<tag>.md when there is one,
+      # its relative links made absolute to the files at the tag.
+      - name: Release notes
+        run: |
+          python3 scripts/ci/release_body.py "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY" "$RUNNER_TEMP/notes.md"
+          echo "NOTES=$RUNNER_TEMP/notes.md" >> "$GITHUB_ENV"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          body_path: ${{ env.NOTES }}
+          prerelease: ${{ contains(github.ref_name, '-rc') }}
+          generate_release_notes: false
