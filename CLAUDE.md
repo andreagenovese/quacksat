@@ -38,8 +38,8 @@ running on the Pollen Robotics Microduck".
 
 - Board: Rockchip RK3566, 1 GB RAM, Armbian, systemd. Rust only in the Pollen
   stack; prefer pure-Rust crates (a C dep costs cross-build and board work).
-- Cross-building from macOS lacks the aarch64 sysroot: use Docker/Linux to
-  build for the board.
+- Cross-build for the board with `scripts/cross-build.sh`: cargo-zigbuild
+  (`zig cc` as the linker, glibc floor 2.31), no Docker, macOS or Linux.
 - IPC: JSON-RPC 2.0 / NDJSON over unix socket, `/run/robotd.sock`; intents as
   notifications (robot.move, robot.head), requests with a response (robot.stop,
   enable, skill). Maintenance namespace excluded from remote clients.

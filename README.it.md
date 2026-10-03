@@ -136,12 +136,15 @@ robot è in attesa — dicembre 2026.
 
 ### 1. Build e installazione sull'anatra
 
-La board dell'anatra è un Rockchip RK3566 aarch64 con Armbian; macOS
-non ha un sysroot aarch64-linux, quindi la build gira in un container
-Linux (serve Docker):
+La board dell'anatra è una Radxa Zero 3 (Rockchip RK3566 aarch64) con
+Armbian e lo userland Debian 13. La cross-build non chiede Docker:
+cargo-zigbuild linka con `zig cc` contro una soglia glibc 2.31, così il
+binario si carica sulla board qualunque glibc abbia la macchina che
+compila (su un Mac: `brew install rustup zig cargo-zigbuild`, poi
+`rustup toolchain install stable --target aarch64-unknown-linux-gnu`):
 
 ```sh
-scripts/build-aarch64.sh          # cross-build del binario release
+scripts/cross-build.sh            # cross-build del binario release
 scripts/deploy.sh <host-anatra>   # installa tutto via ssh
 ```
 

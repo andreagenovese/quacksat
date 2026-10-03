@@ -131,12 +131,15 @@ is pending — December 2026.
 
 ### 1. Build and install on the duck
 
-The duck's board is an aarch64 Rockchip RK3566 running Armbian; macOS
-has no aarch64-linux sysroot, so the build runs in a Linux container
-(Docker required):
+The duck's board is a Radxa Zero 3 (aarch64 Rockchip RK3566) running
+Armbian with the Debian 13 userland. The cross-build needs no Docker:
+cargo-zigbuild links with `zig cc` against a glibc floor of 2.31, so the
+binary loads on the board whatever glibc the build host has (on a Mac:
+`brew install rustup zig cargo-zigbuild`, then
+`rustup toolchain install stable --target aarch64-unknown-linux-gnu`):
 
 ```sh
-scripts/build-aarch64.sh          # cross-build the release binary
+scripts/cross-build.sh            # cross-build the release binary
 scripts/deploy.sh <duck-host>     # install everything over ssh
 ```
 
