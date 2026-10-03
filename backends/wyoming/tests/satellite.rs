@@ -32,7 +32,17 @@ fn fake_aplay(dir: &std::path::Path) -> String {
     // its first exec, which can take longer than the player's settle
     // window — the ack then looked "still playing" and gated every test
     // frame away (a 1-in-3 failure until this line).
-    std::process::Command::new(&script).status().unwrap();
+    // On Linux a fresh executable can briefly be "text file busy" while a
+    // parallel test's fork still holds its write descriptor: retry.
+    for attempt in 0.. {
+        match std::process::Command::new(&script).status() {
+            Ok(_) => break,
+            Err(e) if e.raw_os_error() == Some(26) && attempt < 50 => {
+                std::thread::sleep(std::time::Duration::from_millis(20))
+            }
+            Err(e) => panic!("cannot run the fake aplay: {e}"),
+        }
+    }
     script.to_str().unwrap().to_string()
 }
 
