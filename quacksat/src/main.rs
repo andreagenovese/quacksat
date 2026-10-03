@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::process::Child;
 use std::sync::mpsc::{Receiver, sync_channel};
 
@@ -14,6 +15,9 @@ fn main() -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .with_writer(std::io::stderr)
+        // Colours for a terminal only: under systemd the escapes would
+        // land in the journal as text.
+        .with_ansi(std::io::stderr().is_terminal())
         .init();
 
     let path = std::env::args()
