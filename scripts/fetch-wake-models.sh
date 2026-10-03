@@ -3,7 +3,8 @@
 # every wake word needs (melspectrogram, embedding_model), plus wake
 # models — openWakeWord's pretrained ones (github.com/dscripka/openWakeWord,
 # release v0.5.1) or quacksat's own "hey Daffy" (models/hey_daffy.onnx in
-# this repository, fetched at $QUACKSAT_REF, default main).
+# this repository, fetched at $QUACKSAT_REF, default main — main's copy
+# when GitHub does not have that ref).
 #
 # Usage: scripts/fetch-wake-models.sh [dest-dir] [wake-model...]
 # Defaults: dest-dir = ./models, wake model = hey_jarvis_v0.1.onnx (the
@@ -21,6 +22,7 @@ set -eu
 DEST="${1:-models}"
 shift 2>/dev/null || true
 OWW="https://github.com/dscripka/openWakeWord/releases/download/v0.5.1"
+MAIN="https://raw.githubusercontent.com/andreagenovese/quacksat/main/models"
 OWN="https://raw.githubusercontent.com/andreagenovese/quacksat/${QUACKSAT_REF:-main}/models"
 
 expected() {
@@ -50,7 +52,19 @@ for f in melspectrogram.onnx embedding_model.onnx "$@"; do
         *) url="$OWW/$f" ;;
     esac
     echo "fetching $f"
-    curl -sfL -o "$DEST/$f.part" "$url" || { rm -f "$DEST/$f.part"; echo "could not fetch $url" >&2; exit 1; }
+    if ! curl -sfL -o "$DEST/$f.part" "$url"; then
+        # A ref GitHub does not have (a package built from a commit never
+        # pushed): main's copy, which the checksum below still pins.
+        case "$url" in
+            "$OWN"/*) url="$MAIN/$f"; echo "  not at that ref, trying main" ;;
+            *) url="" ;;
+        esac
+        if [ -z "$url" ] || ! curl -sfL -o "$DEST/$f.part" "$url"; then
+            rm -f "$DEST/$f.part"
+            echo "could not fetch $f" >&2
+            exit 1
+        fi
+    fi
     want=$(expected "$f")
     if [ -n "$want" ] && [ "$(sha256 "$DEST/$f.part")" != "$want" ]; then
         rm -f "$DEST/$f.part"
