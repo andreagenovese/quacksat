@@ -88,7 +88,9 @@ played`.
 utente suo, e la papera compare come dispositivo con pulsanti, cursori e
 sensori; le automazioni d'esempio la fanno camminare a voce. È tutto in
 [home-assistant/README.it.md](home-assistant/README.it.md); la sezione
-"Provarlo senza la papera" lì ha la parte di Home Assistant.
+"Provarlo senza la papera" lì ha la parte di Home Assistant, e
+[home-assistant/setup-guide.it.md](home-assistant/setup-guide.it.md) la
+percorre con le schermate.
 
 ```toml
 [mqtt]

@@ -9,6 +9,9 @@ voce, queste entità le danno il corpo. Funziona su ogni backend. Copia
 canonica in inglese: [README.md](README.md). La decisione e le misure
 che la sostengono: [ADR 0007](../adr/0007-home-assistant-entities-over-mqtt.it.md).
 
+**Passo per passo, con le schermate:** [setup-guide.it.md](setup-guide.it.md)
+— il satellite (Wyoming) e il corpo (MQTT) configurati insieme.
+
 ## Cosa serve
 
 - Un broker MQTT. In Home Assistant OS: l'add-on **Mosquitto broker**, e

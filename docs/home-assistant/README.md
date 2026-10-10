@@ -9,6 +9,9 @@ voice, these entities give it the body. It works on every backend.
 Italian copy: [README.it.md](README.it.md). The decision and the
 measurements behind it: [ADR 0007](../adr/0007-home-assistant-entities-over-mqtt.md).
 
+**Step by step, with screenshots:** [setup-guide.md](setup-guide.md) —
+the satellite (Wyoming) and the body (MQTT) set up together.
+
 ## What you need
 
 - An MQTT broker. In Home Assistant OS: the **Mosquitto broker** add-on,

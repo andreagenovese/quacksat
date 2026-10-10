@@ -85,7 +85,9 @@ question. The log shows `wake`, the transcript and `tts played`.
 of its own, and the duck appears as a device with buttons, sliders and
 sensors; the example automations make it walk by voice. All of it is in
 [home-assistant/README.md](home-assistant/README.md); the section
-"Trying it without the duck" there has the Home Assistant side.
+"Trying it without the duck" there has the Home Assistant side, and
+[home-assistant/setup-guide.md](home-assistant/setup-guide.md) walks
+through it with screenshots.
 
 ```toml
 [mqtt]
