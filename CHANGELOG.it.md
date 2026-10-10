@@ -12,6 +12,30 @@ MuJoCo del Microduck — mai ancora su un'anatra fisica.
 
 ## [Unreleased]
 
+### Aggiunto
+
+- **Il corpo come dispositivo di Home Assistant, via MQTT** (ADR 0007).
+  `[mqtt]`, opzionale, su ogni backend: quacksat pubblica un payload di
+  discovery e Home Assistant costruisce il dispositivo — pulsanti per
+  avanti, gira a sinistra/destra, stop, testa al centro, uno per skill,
+  uno per suono (disattivati), uno per posto con la navigazione; la
+  testa come tre cursori; sensori di batteria, salute, modo, dove,
+  viaggio e ultima risposta. Ogni comando è una chiamata della tabella
+  dei tool, con i suoi limiti. Un client MQTT 3.1.1 scritto a mano (QoS
+  0, last will, credenziali obbligatorie). Un comando `go_to` riceve un
+  posto per nome, confrontato senza maiuscole né articolo. Automazioni a
+  frase d'esempio, frasi di Speech-to-Phrase sulle aree e un blueprint in
+  `docs/home-assistant/`, in italiano e in inglese, provati su Home
+  Assistant 2026.10 e Speech-to-Phrase 1.4.3.
+
+### Modificato
+
+- **Una camminata alla volta, in tutto il processo.** `body::timed_move`
+  rifiuta una camminata mentre un'altra viene pompata, chiunque
+  l'abbia chiesta, e `body::halt` ferma quella in corso al tick
+  successivo; `robot.move` risponde `stopped: true` con i secondi
+  davvero camminati quando è stata interrotta.
+
 ## [0.1.0-rc1] - 2026-10-03
 
 La prima release candidate: il satellite vocale come l'hanno lasciato

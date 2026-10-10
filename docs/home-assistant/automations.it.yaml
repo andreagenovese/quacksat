@@ -1,0 +1,176 @@
+# quacksat — automazioni d'esempio per Home Assistant (ADR 0007 §7).
+# Copia inglese: automations.yaml.
+#
+# Frasi a voce per l'agente di Home Assistant stesso, senza LLM. Sono
+# automazioni con trigger `conversation` perché è l'unica forma che
+# capiscono sia l'agente di Home Assistant sia Speech-to-Phrase (misurato
+# il 2026-10-10). Ognuna preme il comando, aspetta la risposta di
+# quacksat sul topic di risultato e dice cosa è successo davvero.
+#
+# Prima di incollarle in automations.yaml: sostituisci `quacksat` nei
+# topic (`quacksat/quacksat/...`) e negli id delle entità
+# (`button.quacksat_...`) con il nodo della tua papera, se l'hai
+# cambiato (`[mqtt] node`, altrimenti il nome del backend).
+
+- id: quacksat_avanti
+  alias: Papera, avanti
+  triggers:
+    - trigger: conversation
+      command:
+        - "papera (avanza|vai avanti|cammina)"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_forward}
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/forward
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}Il robot non risponde.
+        {% elif wait.trigger.payload_json.ok %}Fatto.
+        {% else %}Non posso: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+- id: quacksat_gira
+  alias: Papera, gira
+  triggers:
+    - trigger: conversation
+      id: left
+      command:
+        - "papera gira a sinistra"
+    - trigger: conversation
+      id: right
+      command:
+        - "papera gira a destra"
+  actions:
+    - action: button.press
+      target:
+        entity_id: "button.quacksat_turn_{{ trigger.id }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: "quacksat/quacksat/result/turn_{{ trigger.id }}"
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}Il robot non risponde.
+        {% elif wait.trigger.payload_json.ok %}Fatto.
+        {% else %}Non posso: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+- id: quacksat_fermati
+  alias: Papera, fermati
+  triggers:
+    - trigger: conversation
+      command:
+        - "papera (fermati|stop|basta)"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_stop}
+    - set_conversation_response: "Mi fermo."
+
+# Le skill: il contenuto è il nome che il robot ha dato in `robot.skills`
+# (i pulsanti `button.quacksat_skill_*` mostrano quelli del tuo robot).
+- id: quacksat_skill
+  alias: Papera, fai una skill
+  triggers:
+    - trigger: conversation
+      id: roulade
+      command:
+        - "papera fai la capriola"
+    - trigger: conversation
+      id: sit_toggle
+      command:
+        - "papera (siediti|alzati)"
+    - trigger: conversation
+      id: ground_pick
+      command:
+        - "papera becca"
+    - trigger: conversation
+      id: kick_left
+      command:
+        - "papera calcia con la sinistra"
+    - trigger: conversation
+      id: kick_right
+      command:
+        - "papera calcia con la destra"
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: quacksat/quacksat/cmd/skill
+        payload: "{{ trigger.id }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/skill
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}Il robot non risponde.
+        {% elif wait.trigger.payload_json.ok %}Ecco.
+        {% else %}Non posso: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+# La testa: pose fisse, a parole (yaw positivo è a sinistra).
+- id: quacksat_testa
+  alias: Papera, la testa
+  triggers:
+    - trigger: conversation
+      id: "0.8"
+      command:
+        - "papera guarda a sinistra"
+    - trigger: conversation
+      id: "-0.8"
+      command:
+        - "papera guarda a destra"
+  actions:
+    - action: number.set_value
+      target: {entity_id: number.quacksat_head_yaw}
+      data:
+        value: "{{ trigger.id | float }}"
+    - set_conversation_response: "Guardo."
+
+- id: quacksat_testa_centro
+  alias: Papera, testa al centro
+  triggers:
+    - trigger: conversation
+      command:
+        - "papera guarda avanti"
+        - "papera centra la testa"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_head_center}
+    - set_conversation_response: "Guardo avanti."
+
+# La domanda di serie sui sensori non passa da Speech-to-Phrase in
+# italiano: la batteria ha una frase sua.
+- id: quacksat_batteria
+  alias: Papera, quanta batteria
+  triggers:
+    - trigger: conversation
+      command:
+        - "papera quanta batteria hai"
+        - "papera come va la batteria"
+  actions:
+    - set_conversation_response: >-
+        {% set b = states('sensor.quacksat_battery') %}
+        {% if b in ['unknown', 'unavailable'] %}Non lo so, il robot non risponde.
+        {% else %}Ho il {{ b | float | round(0) | int }} per cento.{% endif %}
+
+# I posti: un segnaposto libero raccoglie qualunque "papera vai in …" e
+# quacksat dice se conosce il posto. Con faster-whisper basta questa; con
+# Speech-to-Phrase servono anche il file di frasi sulle aree
+# (speech-to-phrase/it/quacksat.yaml) e, per i posti che non sono
+# stanze, il blueprint (blueprints/quacksat_go_to.it.yaml).
+- id: quacksat_vai
+  alias: Papera, vai in un posto
+  triggers:
+    - trigger: conversation
+      command:
+        - "papera (vai|va) [in|nel|nella|nello|al|alla|allo|sul|sulla|sullo] {posto}"
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: quacksat/quacksat/cmd/go_to
+        payload: "{{ trigger.slots.posto }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/go_to
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}Il robot non risponde.
+        {% elif wait.trigger.payload_json.ok %}Ci vado.
+        {% else %}Non posso: {{ wait.trigger.payload_json.error }}.{% endif %}

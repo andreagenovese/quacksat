@@ -65,7 +65,12 @@ twin of the Microduck. On-robot validation is pending — December 2026.
   and a thinking cue: a slow head sway while the answer is computed,
   a low give-up tock on timeout or error (`[thinking]` config).
 - `wyoming`: registers in Home Assistant and runs the full Assist
-  round-trip (wake → STT → intent → TTS).
+  round-trip (wake → STT → intent → TTS). With `[mqtt]` (ADR 0007, on
+  any backend) the body is a Home Assistant device too: buttons that
+  walk, turn, stop and run skills, the head as sliders, battery and
+  health sensors, one button per place, and example sentence
+  automations that answer with what the duck actually did —
+  `docs/home-assistant/README.md`.
 - `agent`: the neutral WebSocket protocol (`docs/agent-protocol.md`)
   plus the reference bridge in `bridge/` — STT/LLM/TTS as OpenAI-dialect
   url+key endpoints, robot tools behind an exhaustive allowlist, and an

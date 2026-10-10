@@ -67,7 +67,12 @@ del Microduck. La validazione sul robot è in attesa — dicembre 2026.
   oscillazione della testa mentre la risposta viene calcolata, un
   "tock" basso di resa su timeout o errore (config `[thinking]`).
 - `wyoming`: si registra in Home Assistant ed esegue il giro Assist
-  completo (wake → STT → intent → TTS).
+  completo (wake → STT → intent → TTS). Con `[mqtt]` (ADR 0007, su
+  qualunque backend) anche il corpo è un dispositivo di Home Assistant:
+  pulsanti per camminare, girare, fermarsi ed eseguire le skill, la
+  testa come cursori, sensori di batteria e salute, un pulsante per
+  posto, e automazioni a frase d'esempio che rispondono con ciò che la
+  papera ha fatto davvero — `docs/home-assistant/README.it.md`.
 - `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.md`)
   più il bridge di riferimento in `bridge/` — STT/LLM/TTS come endpoint
   url+key in dialetto OpenAI, tool robot dietro una allowlist

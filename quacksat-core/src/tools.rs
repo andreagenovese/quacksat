@@ -327,7 +327,13 @@ pub fn execute(name: &str, args: &Value, robot: &mut Robot) -> Result<Value, Str
             let params = trimmed(&robot.gait, move_params(args));
             // No heading hold here: the yaw it closes on is the cliff
             // guard's, and the guard belongs to the navigation daemon.
-            timed_move(control, params, duration)?;
+            let walked = timed_move(control, params, duration)?;
+            // Cut short when somebody pressed stop (`body::halt`): the
+            // agent should know the walk did not go the whole way.
+            let walked = (walked * 10.0).round() / 10.0;
+            if walked + 0.05 < duration {
+                return Ok(json!({"done": true, "walked_s": walked, "stopped": true}));
+            }
             Ok(json!({"done": true, "walked_s": duration}))
         }
         "robot.state" => {

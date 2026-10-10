@@ -22,6 +22,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
     let mut robot = Robot::connect(config);
     // What the duck says on its own, spoken by the bridge (`say`).
     robot.announcer = quacksat_core::announce::Announcer::start(config);
+    quacksat_core::ha::start(config, robot.announcer.clone())?;
     let mut player = match &config.audio.playback_program {
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),

@@ -18,6 +18,9 @@ use quacksat_core::wake;
 /// receiver), robot and speaker are owned here and survive HA reconnects.
 pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<()> {
     let mut lane = Lane::connect(&config.robotd_socket);
+    // The body for Home Assistant (ADR 0007): Wyoming carries the voice,
+    // MQTT the buttons and sensors. Nothing to announce on this path.
+    quacksat_core::ha::start(config, None)?;
     let mut player = match &config.audio.playback_program {
         Some(program) => Player::with_program(&config.audio.playback_device, program),
         None => Player::new(&config.audio.playback_device),

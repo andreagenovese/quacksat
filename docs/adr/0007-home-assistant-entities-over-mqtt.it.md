@@ -67,12 +67,15 @@ Considerate e scartate:
   automazioni e le dashboard restano senza corpo. Completa questa ADR e
   non viene sostituito da essa.
 
-Il client è `rumqttc` con le feature di default spente: TCP semplice,
-API sincrona (un `Client` più un iteratore `Connection` su un thread
-suo), nessun runtime tokio in un backend che non ne ha, e niente
-`ring`, che è ciò che porterebbe la feature TLS ed è C e assembly. Il
-TLS aspetta un provider in Rust puro o un bisogno vero; su una LAN di
-casa il recinto sono la password del broker e la sua ACL (§5).
+Il client è scritto a mano (`quacksat_core::ha::mqtt`), come il server
+MCP del backend direct: MQTT 3.1.1, QoS 0, sessione pulita, last will,
+utente e password — pochi pacchetti incorniciati e circa trecento righe
+con i loro test. (Scritto all'inizio come `rumqttc` con le feature di
+default spente; all'implementazione è risultato che porta un runtime
+tokio sotto la sua API sincrona, e la sua feature TLS porta `ring`, che
+è C e assembly. Nessuno dei due vale la pena per questo sottoinsieme.)
+Il TLS aspetta un provider in Rust puro o un bisogno vero; su una LAN
+di casa il recinto sono la password del broker e la sua ACL (§5).
 
 ### 2. Opzionale, su ogni backend, su un thread suo
 
@@ -81,12 +84,20 @@ casa il recinto sono la password del broker e la sua ACL (§5).
 automazioni e dashboard, e il codice non bada a quale backend tenga il
 microfono.
 
-Gira su un thread suo, accanto al loop vocale, e condivide con esso il
-`Robot` — la lane di robotd, la lista delle skill, la lane della
-navigazione — dietro lo stesso mutex che usa già il server MCP del
-backend direct (`SharedRobot`, che si sposta da `backends/direct` al
-core). Il backend wyoming, che oggi tiene una `Lane` nuda, terrà invece
-il `Robot` condiviso.
+Gira su thread suoi, accanto al loop vocale: uno tiene il socket del
+broker, l'altro — il worker — tiene un `Robot` suo, con le sue lane
+verso robotd e quack-navd. (Scritto all'inizio come condivisione del
+`Robot` del loop vocale dietro il mutex del backend direct;
+all'implementazione una camminata di tre secondi con quel mutex in mano
+avrebbe bloccato i segnali e l'audio del loop wyoming, e il backend
+wyoming tiene una `Lane` nuda. Lane separate non costano niente a
+robotd, che serve più client.) La regola della camminata unica, che il
+mutex avrebbe dato, si è spostata dove ogni camminata viene pompata:
+`body::timed_move` rifiuta una camminata mentre un'altra viene pompata
+nel processo, chiunque l'abbia chiesta — un tool di un turno vocale, un
+client MCP, un pulsante — e `body::halt` ferma quella in corso (§4,
+§5). I backend chiamano solo `ha::start`, passando il loro
+annunciatore.
 
 ### 3. Il catalogo delle entità
 
@@ -110,6 +121,7 @@ dell'LLM non potessero già mandare, e i limiti sono le stesse costanti.
 | Modo | `sensor` | `robot.state` → `mode` | |
 | Dove | `sensor` | `robot.where_am_i` / `robot.map_status` | solo con la navigazione: il nome del posto, o la posa come attributi |
 | Viaggio | `sensor` | `robot.map_status` | solo con la navigazione: fermo, in cammino, arrivata, fallito, con il motivo |
+| Ultima risposta | `sensor` | i topic di risultato | la risposta all'ultimo comando come la direbbe la papera; tiene anche Home Assistant sempre sottoscritto a `result/+` — senza, un'automazione che preme e poi aspetta perdeva una risposta più veloce della sua stessa sottoscrizione (misurato: `go_to` ha risposto in meno di un millisecondo) |
 
 **I posti: pulsanti per la mano, un comando per nome per la voce.** Un
 pulsante per posto serve a dashboard e automazioni, costruito da
@@ -139,7 +151,7 @@ voce, è tornata vuota), e la risposta è quella fissa di Home Assistant,
 "Ho attivato la scena…", che non dice niente quando quacksat rifiuta.
 
 **Nomi nella lingua dell'utente.** I nomi visibili seguono `[announce]
-language` ("Papera avanti", "Papera vai in cucina"): sono ciò che
+language` ("Papera avanti", "Papera vai: cucina"): sono ciò che
 mostra una dashboard e ciò che legge un agente LLM. Gli id delle entità
 restano in inglese e stabili (§6), così un'automazione sopravvive a un
 cambio di lingua.
@@ -171,7 +183,14 @@ Conseguenze per i topic:
 - **I topic di comando non sono mai retained, e un messaggio retained
   su uno di essi viene scartato.** MQTT consegna a chi si sottoscrive il
   messaggio retained a ogni (ri)connessione: un "avanti" retained farebbe
-  camminare la papera dopo ogni riavvio del broker.
+  camminare la papera dopo ogni riavvio del broker. (Un messaggio
+  retained pubblicato mentre quacksat è connesso gli arriva come uno
+  normale, con il flag spento, ed è eseguito una volta: è MQTT 3.1.1, ed
+  è un comando dal vivo.)
+- **Un comando vuoto viene scartato.** Cancellare un messaggio retained
+  ne manda uno vuoto a ogni abbonato; trovato dal vivo, quando
+  cancellare l'"avanti" retained della prova ha fatto camminare la
+  papera per due secondi. I pulsanti di Home Assistant mandano "PRESS".
 - **QoS 0 e sessione pulita.** Un comando mandato mentre quacksat era
   offline va perso, non rieseguito ore dopo.
 - **Una pressione durante una camminata viene scartata**, e scritta nel
@@ -187,10 +206,12 @@ Conseguenze per i topic:
 L'ADR 0006 §4 vale: le gambe le guida una cosa alla volta.
 
 - Una camminata da MQTT viene rifiutata mentre è in corso un viaggio
-  della navigazione, mentre un turno vocale sta eseguendo un tool, o
-  mentre c'è già un'altra camminata; il mutex del `Robot` serializza il
-  resto. Il rifiuto è pubblicato sul topic di risultato del comando
-  (§6) e scritto nel log.
+  della navigazione (il worker legge prima `robot.map_status`) o mentre
+  un'altra camminata viene pompata in qualunque punto del processo
+  (`body::timed_move`, §2), compresa quella di un turno vocale; una
+  pressione mentre il worker è ancora occupato con la precedente riceve
+  "occupata". Il rifiuto è pubblicato sul topic di risultato del
+  comando (§6) e scritto nel log.
 - Un viaggio partito da un pulsante di posto viene seguito dall'annunciatore come
   uno partito a voce, quindi su `agent` e `direct` la papera dice
   comunque com'è finito.
@@ -315,7 +336,7 @@ cambiano man mano che la papera impara la casa.
        timeout: 3
      - set_conversation_response: >-
          {% if not wait.trigger %}Il robot non risponde.
-         {% elif wait.trigger.payload_json.ok %}Vado in {{ trigger.slots.posto }}.
+         {% elif wait.trigger.payload_json.ok %}Ci vado.
          {% else %}{{ wait.trigger.payload_json.error }}{% endif %}
    ```
 

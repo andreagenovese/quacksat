@@ -1,0 +1,177 @@
+# quacksat — example automations for Home Assistant (ADR 0007 §7).
+# Italian copy: automations.it.yaml.
+#
+# Spoken sentences for Home Assistant's own agent, no LLM needed. They
+# are automations with a `conversation` trigger because that is the one
+# form both Home Assistant's agent and Speech-to-Phrase understand
+# (measured on 2026-10-10). Each presses the command, waits for
+# quacksat's answer on the result topic and says what actually
+# happened.
+#
+# Before pasting them into automations.yaml: replace `quacksat` in the
+# topics (`quacksat/quacksat/...`) and in the entity ids
+# (`button.quacksat_...`) with your duck's node, if you changed it
+# (`[mqtt] node`, else the backend's name).
+
+- id: quacksat_forward
+  alias: Duck, walk forward
+  triggers:
+    - trigger: conversation
+      command:
+        - "duck (walk|go) forward"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_forward}
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/forward
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}The robot isn't answering.
+        {% elif wait.trigger.payload_json.ok %}Done.
+        {% else %}I can't: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+- id: quacksat_turn
+  alias: Duck, turn
+  triggers:
+    - trigger: conversation
+      id: left
+      command:
+        - "duck turn left"
+    - trigger: conversation
+      id: right
+      command:
+        - "duck turn right"
+  actions:
+    - action: button.press
+      target:
+        entity_id: "button.quacksat_turn_{{ trigger.id }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: "quacksat/quacksat/result/turn_{{ trigger.id }}"
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}The robot isn't answering.
+        {% elif wait.trigger.payload_json.ok %}Done.
+        {% else %}I can't: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+- id: quacksat_stop
+  alias: Duck, stop
+  triggers:
+    - trigger: conversation
+      command:
+        - "duck (stop|halt|that's enough)"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_stop}
+    - set_conversation_response: "Stopping."
+
+# Skills: the payload is the name the robot gave in `robot.skills` (the
+# `button.quacksat_skill_*` buttons show your robot's own).
+- id: quacksat_skill
+  alias: Duck, do a skill
+  triggers:
+    - trigger: conversation
+      id: roulade
+      command:
+        - "duck do a (roll|somersault)"
+    - trigger: conversation
+      id: sit_toggle
+      command:
+        - "duck (sit down|stand up)"
+    - trigger: conversation
+      id: ground_pick
+      command:
+        - "duck peck"
+    - trigger: conversation
+      id: kick_left
+      command:
+        - "duck kick left"
+    - trigger: conversation
+      id: kick_right
+      command:
+        - "duck kick right"
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: quacksat/quacksat/cmd/skill
+        payload: "{{ trigger.id }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/skill
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}The robot isn't answering.
+        {% elif wait.trigger.payload_json.ok %}There you go.
+        {% else %}I can't: {{ wait.trigger.payload_json.error }}.{% endif %}
+
+# The head: fixed poses, in words (positive yaw is to the left).
+- id: quacksat_head
+  alias: Duck, the head
+  triggers:
+    - trigger: conversation
+      id: "0.8"
+      command:
+        - "duck look left"
+    - trigger: conversation
+      id: "-0.8"
+      command:
+        - "duck look right"
+  actions:
+    - action: number.set_value
+      target: {entity_id: number.quacksat_head_yaw}
+      data:
+        value: "{{ trigger.id | float }}"
+    - set_conversation_response: "Looking."
+
+- id: quacksat_head_center
+  alias: Duck, head to the center
+  triggers:
+    - trigger: conversation
+      command:
+        - "duck look ahead"
+        - "duck center your head"
+  actions:
+    - action: button.press
+      target: {entity_id: button.quacksat_head_center}
+    - set_conversation_response: "Looking ahead."
+
+# Speech-to-Phrase does not carry the built-in sensor question in every
+# language: the battery has a sentence of its own.
+- id: quacksat_battery
+  alias: Duck, how much battery
+  triggers:
+    - trigger: conversation
+      command:
+        - "duck how much battery do you have"
+        - "duck how is your battery"
+  actions:
+    - set_conversation_response: >-
+        {% set b = states('sensor.quacksat_battery') %}
+        {% if b in ['unknown', 'unavailable'] %}I don't know, the robot isn't answering.
+        {% else %}I'm at {{ b | float | round(0) | int }} percent.{% endif %}
+
+# Places: a free slot catches every "duck go to …" and quacksat says
+# whether it knows the place. With faster-whisper this alone is enough;
+# with Speech-to-Phrase add the sentence file on the areas
+# (speech-to-phrase/en/quacksat.yaml) and, for the places that are not
+# rooms, the blueprint (blueprints/quacksat_go_to.yaml).
+- id: quacksat_go_to
+  alias: Duck, go to a place
+  triggers:
+    - trigger: conversation
+      command:
+        - "duck go to [the] {place}"
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: quacksat/quacksat/cmd/go_to
+        payload: "{{ trigger.slots.place }}"
+    - wait_for_trigger:
+        - trigger: mqtt
+          topic: quacksat/quacksat/result/go_to
+      timeout: 5
+    - set_conversation_response: >-
+        {% if not wait.trigger %}The robot isn't answering.
+        {% elif wait.trigger.payload_json.ok %}On my way to {{ wait.trigger.payload_json.place }}.
+        {% else %}I can't: {{ wait.trigger.payload_json.error }}.{% endif %}

@@ -31,6 +31,7 @@ pub fn run(config: &Config, frames: mpsc::Receiver<Vec<i16>>) -> anyhow::Result<
     // when nobody asked): the sentences wait for the idle loop below.
     let announcer = Announcer::start(config);
     robot.announcer = announcer.clone();
+    quacksat_core::ha::start(config, announcer.clone())?;
     let lang = Lang::resolve(config, None);
     let control: mcp::SharedRobot = std::sync::Arc::new(std::sync::Mutex::new(robot));
     if config.direct.mcp.enabled {

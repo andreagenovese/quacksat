@@ -1,0 +1,44 @@
+# quacksat — blueprint for the duck's places that are not rooms
+# (ADR 0007 §7). Italian copy: quacksat_go_to.it.yaml.
+#
+# Speech-to-Phrase learns the sentences of automation triggers, so one
+# sentence per place here makes it hear places it has no area for
+# ("duck go to the sofa"). The list is kept by hand when the duck learns
+# or forgets a place. Copy to config/blueprints/automation/quacksat/.
+blueprint:
+  name: Duck, go to a place (sentence list)
+  description: One sentence per place, for the places that are not Home Assistant areas.
+  domain: automation
+  input:
+    sentences:
+      name: Sentences
+      description: 'One per place, written as "duck go to <place>", for example "duck go to the sofa"'
+      selector:
+        text:
+          multiple: true
+    node:
+      name: Node
+      description: The duck's MQTT node ([mqtt] node, else the backend's name)
+      default: quacksat
+      selector:
+        text: {}
+triggers:
+  - trigger: conversation
+    command: !input sentences
+variables:
+  node: !input node
+actions:
+  - variables:
+      place: "{{ trigger.sentence | lower | regex_replace('^duck,? go to (the )?', '') }}"
+  - action: mqtt.publish
+    data:
+      topic: "quacksat/{{ node }}/cmd/go_to"
+      payload: "{{ place }}"
+  - wait_for_trigger:
+      - trigger: mqtt
+        topic: "quacksat/{{ node }}/result/go_to"
+    timeout: 5
+  - set_conversation_response: >-
+      {% if not wait.trigger %}The robot isn't answering.
+      {% elif wait.trigger.payload_json.ok %}On my way to {{ wait.trigger.payload_json.place }}.
+      {% else %}I can't: {{ wait.trigger.payload_json.error }}.{% endif %}

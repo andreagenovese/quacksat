@@ -74,6 +74,7 @@ fn run_bringup(config: &Config, frames: Receiver<Vec<i16>>) -> anyhow::Result<()
     // Every lane the tools would use, so bring-up exercises the map
     // client too (its log lines say what the robot's mapping is doing).
     let mut robot = Robot::connect(config);
+    quacksat_core::ha::start(config, None)?;
 
     let mut vad = Vad::new();
     let mut detector = wake::from_config(&config.wake)?;

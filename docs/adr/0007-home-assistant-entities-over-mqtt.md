@@ -63,10 +63,13 @@ Considered and set aside:
   automations and dashboards stay without the body. It complements
   this ADR and is not replaced by it.
 
-The client is `rumqttc` with its default features off: plain TCP, sync
-API (a `Client` plus a `Connection` iterator on a thread of its own),
-no tokio runtime in a backend that has none, and no `ring`, which is
-what the TLS feature would bring and is C and assembly. TLS waits for a
+The client is hand-rolled (`quacksat_core::ha::mqtt`), like the direct
+backend's MCP server: MQTT 3.1.1, QoS 0, a clean session, a last will,
+username and password — a few framed packets and some three hundred
+lines with their tests. (First written as `rumqttc` with its default
+features off; at implementation it turned out to carry a tokio runtime
+under its sync API, and its TLS feature brings `ring`, which is C and
+assembly. Neither is worth it for this subset.) TLS waits for a
 pure-Rust provider or a real need; on a home LAN the broker's password
 and ACL are the fence (§5).
 
@@ -77,12 +80,18 @@ fenced to it: the entities are as useful on `agent` and `direct` for
 automations and dashboards, and the code does not care which backend
 holds the microphone.
 
-It runs on a thread of its own, beside the voice loop, and shares the
-`Robot` with it — the robotd lane, the skill list, the navigation
-lane — behind the same mutex the direct backend's MCP server already
-uses (`SharedRobot`, which moves from `backends/direct` to the core).
-The wyoming backend, which today holds a bare `Lane`, holds the shared
-`Robot` instead.
+It runs on threads of its own, beside the voice loop: one owns the
+broker socket, one — the worker — holds a `Robot` of its own, with its
+own lanes to robotd and quack-navd. (First written as sharing the voice
+loop's `Robot` behind the direct backend's mutex; at implementation a
+three-second walk holding that mutex would have stalled the wyoming
+loop's cues and its audio, and the wyoming backend holds a bare `Lane`.
+Separate lanes cost nothing to robotd, which serves several clients.)
+The one-walk rule that the mutex would have given moved where every
+walk is pumped: `body::timed_move` refuses a walk while another is
+pumped in the process, whoever asked for it — a voice tool call, an MCP
+client, a button — and `body::halt` ends the one in progress (§4, §5).
+The backends only call `ha::start`, handing over their announcer.
 
 ### 3. The entity catalog
 
@@ -106,6 +115,7 @@ already send, and the clamps are the same constants.
 | Mode | `sensor` | `robot.state` → `mode` | |
 | Where | `sensor` | `robot.where_am_i` / `robot.map_status` | navigation only: the place name, or the pose as attributes |
 | Journey | `sensor` | `robot.map_status` | navigation only: idle, walking, arrived, failed, with the reason |
+| Last answer | `sensor` | the result topics | the last command's answer as the duck would say it; it also keeps Home Assistant subscribed to `result/+` at all times — without it an automation that presses and then waits missed an answer faster than its own subscription (measured: `go_to` answered in under a millisecond) |
 
 **Places: buttons for the hand, a named command for the voice.** One
 button per place serves dashboards and automations, built from
@@ -133,7 +143,7 @@ and the reply is Home Assistant's fixed "Ho attivato la scena…", which
 says nothing when quacksat refuses.
 
 **Names in the user's language.** Friendly names follow `[announce]
-language` ("Papera avanti", "Papera vai in cucina"): they are what a
+language` ("Papera avanti", "Papera vai: cucina"): they are what a
 dashboard shows and what an LLM agent reads. Entity ids stay English
 and stable (§6), so an automation survives a change of language.
 
@@ -161,7 +171,13 @@ There is no "walk until I say stop" entity. A press is one bounded
 - **Command topics are never retained, and a retained message on one is
   dropped.** MQTT hands a subscriber the retained message on every
   (re)connect: a retained "forward" would walk the duck after every
-  broker restart.
+  broker restart. (A retained message published while quacksat is
+  connected reaches it as a live one, with the flag clear, and is
+  acted on once: that is MQTT 3.1.1, and it is a live command.)
+- **An empty command is dropped.** Clearing a retained message sends an
+  empty one to every subscriber; found live, when clearing the test's
+  retained "forward" walked the duck for two seconds. Home Assistant's
+  buttons send "PRESS".
 - **QoS 0 and a clean session.** A command sent while quacksat was
   offline is lost, not replayed hours later.
 - **A press while walking is dropped**, and logged. Presses do not
@@ -175,10 +191,12 @@ There is no "walk until I say stop" entity. A press is one bounded
 
 ADR 0006 §4 holds: one thing drives the legs at a time.
 
-- A walk from MQTT is refused while a navigation journey runs, while a
-  voice turn is executing a tool call, or while another walk runs; the
-  `Robot` mutex serialises the rest. The refusal is published on the
-  command's result topic (§6) and logged.
+- A walk from MQTT is refused while a navigation journey runs (the
+  worker reads `robot.map_status` first) or while another walk is
+  pumped anywhere in the process (`body::timed_move`, §2), a voice
+  turn's included; a press while the worker is still busy with the last
+  one is answered "busy". The refusal is published on the command's
+  result topic (§6) and logged.
 - A navigation job started from a place button is followed by the
   announcer like one started by voice, so on `agent` and `direct` the
   duck still says how it ended.
@@ -301,7 +319,7 @@ they change as the duck learns the house.
        timeout: 3
      - set_conversation_response: >-
          {% if not wait.trigger %}Il robot non risponde.
-         {% elif wait.trigger.payload_json.ok %}Vado in {{ trigger.slots.posto }}.
+         {% elif wait.trigger.payload_json.ok %}Ci vado.
          {% else %}{{ wait.trigger.payload_json.error }}{% endif %}
    ```
 

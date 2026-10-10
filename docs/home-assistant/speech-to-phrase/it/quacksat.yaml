@@ -1,0 +1,12 @@
+# quacksat — frasi per Speech-to-Phrase (non per Home Assistant).
+# Va nella cartella delle frasi personalizzate dell'add-on, sotto `it/`.
+# Insegna a Speech-to-Phrase "papera vai in <area>" per ogni area di
+# Home Assistant: l'automazione "Papera, vai in un posto" fa il resto.
+# Dai ai posti della papera i nomi delle aree. Misurato il 2026-10-10
+# (ADR 0007 §7).
+language: it
+intents:
+  QuacksatGoArea:
+    data:
+      - sentences:
+          - "papera (vai|va) (in|nel|nella|nello|al|alla|allo|sul|sulla|sullo) {area}"

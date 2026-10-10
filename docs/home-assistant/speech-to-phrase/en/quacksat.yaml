@@ -1,0 +1,11 @@
+# quacksat — sentences for Speech-to-Phrase (not for Home Assistant).
+# Goes in the add-on's custom sentences folder, under `en/`. It teaches
+# Speech-to-Phrase "duck go to <area>" for every Home Assistant area: the
+# "Duck, go to a place" automation does the rest. Give the duck's places
+# the names of the areas. Measured (in Italian) on 2026-10-10, ADR 0007 §7.
+language: en
+intents:
+  QuacksatGoArea:
+    data:
+      - sentences:
+          - "duck go to [the] {area}"

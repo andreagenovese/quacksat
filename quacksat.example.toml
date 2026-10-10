@@ -96,6 +96,24 @@ bind = "0.0.0.0:10700"
 name = "quacksat"
 # area = "Living room"
 
+# The body as Home Assistant entities (ADR 0007): buttons, sliders and
+# sensors published through MQTT discovery, on any backend. What makes
+# the wyoming path a whole robot; see docs/home-assistant/README.md.
+[mqtt]
+enabled = false
+host = "homeassistant.local"
+port = 1883
+# Mandatory when enabled: the topics drive a robot that walks.
+username = ""
+password = ""
+# The id in the topics and entity ids; empty takes the backend's name.
+# node = "quacksat"
+# The device's name in Home Assistant; empty: "Papera" or "Duck".
+# device_name = ""
+# Seconds one forward / one turn press walks (at most 3).
+step_s = 2.0
+turn_s = 2.0
+
 [direct.llm]
 # Any /chat/completions endpoint (OpenAI, a local ollama, ...).
 base_url = "http://localhost:11434/v1"

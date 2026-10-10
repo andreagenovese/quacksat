@@ -1,0 +1,45 @@
+# quacksat — blueprint per i posti della papera che non sono stanze
+# (ADR 0007 §7). Copia inglese: quacksat_go_to.yaml.
+#
+# Speech-to-Phrase impara le frasi dei trigger delle automazioni, quindi
+# una frase per posto qui gli fa sentire posti per cui non ha un'area
+# ("papera vai sul divano"). L'elenco si aggiorna a mano quando la papera
+# impara o dimentica un posto. Copialo in
+# config/blueprints/automation/quacksat/.
+blueprint:
+  name: Papera, vai in un posto (elenco di frasi)
+  description: Una frase per posto, per i posti che non sono aree di Home Assistant.
+  domain: automation
+  input:
+    frasi:
+      name: Frasi
+      description: 'Una per posto, nella forma "papera vai in <posto>", per esempio "papera vai sul divano"'
+      selector:
+        text:
+          multiple: true
+    nodo:
+      name: Nodo
+      description: Il nodo MQTT della papera ([mqtt] node, altrimenti il nome del backend)
+      default: quacksat
+      selector:
+        text: {}
+triggers:
+  - trigger: conversation
+    command: !input frasi
+variables:
+  nodo: !input nodo
+actions:
+  - variables:
+      posto: "{{ trigger.sentence | lower | regex_replace('^papera,? (vai|va) (in|nel|nella|nello|al|alla|allo|sul|sulla|sullo) ', '') }}"
+  - action: mqtt.publish
+    data:
+      topic: "quacksat/{{ nodo }}/cmd/go_to"
+      payload: "{{ posto }}"
+  - wait_for_trigger:
+      - trigger: mqtt
+        topic: "quacksat/{{ nodo }}/result/go_to"
+    timeout: 5
+  - set_conversation_response: >-
+      {% if not wait.trigger %}Il robot non risponde.
+      {% elif wait.trigger.payload_json.ok %}Ci vado.
+      {% else %}Non posso: {{ wait.trigger.payload_json.error }}.{% endif %}

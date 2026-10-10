@@ -287,7 +287,7 @@ impl Status {
         })
     }
 
-    fn moving(&self) -> bool {
+    pub fn moving(&self) -> bool {
         matches!(self.state.as_str(), "running" | "relocalizing" | "searching")
     }
 

@@ -11,6 +11,7 @@ pub mod audio;
 pub mod body;
 pub mod config;
 pub mod gait;
+pub mod ha;
 pub mod listen;
 pub mod nav_client;
 pub mod playback;

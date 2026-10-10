@@ -47,6 +47,54 @@ pub struct Config {
     /// ([`crate::announce`]).
     #[serde(default)]
     pub announce: AnnounceConfig,
+    /// The body as Home Assistant entities, over MQTT discovery
+    /// (ADR 0007, [`crate::ha`]).
+    #[serde(default)]
+    pub mqtt: MqttConfig,
+}
+
+/// `[mqtt]`: the duck's body published to Home Assistant as a device —
+/// buttons, numbers and sensors — through the home's MQTT broker.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct MqttConfig {
+    pub enabled: bool,
+    pub host: String,
+    pub port: u16,
+    /// Both required when enabled: the topics drive a robot that walks.
+    pub username: String,
+    pub password: String,
+    /// The device's id in the topics and the entity ids. Empty: the
+    /// active backend's name (`[wyoming] name`, `[agent] name`), else
+    /// "quacksat".
+    pub node: String,
+    /// The device's name in Home Assistant. Empty: "Papera" or "Duck",
+    /// by `[announce] language`.
+    pub device_name: String,
+    pub discovery_prefix: String,
+    pub base_topic: String,
+    /// Seconds one "forward" press walks, capped at the tool's 3 s.
+    pub step_s: f64,
+    /// Seconds one "turn" press walks (the duck cannot turn in place).
+    pub turn_s: f64,
+}
+
+impl Default for MqttConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            host: "homeassistant.local".into(),
+            port: 1883,
+            username: String::new(),
+            password: String::new(),
+            node: String::new(),
+            device_name: String::new(),
+            discovery_prefix: "homeassistant".into(),
+            base_topic: "quacksat".into(),
+            step_s: 2.0,
+            turn_s: 2.0,
+        }
+    }
 }
 
 /// `[announce]`: the duck's own sentences. A journey started by a tool
@@ -357,6 +405,30 @@ fn default_robotd_socket() -> String {
 impl Config {
     pub const DEFAULT_PATH: &'static str = "/etc/robot/quacksat.toml";
 
+    /// The MQTT node id: `[mqtt] node`, else the active backend's own
+    /// name, made safe for a topic and an entity id (`[a-z0-9_]`).
+    pub fn mqtt_node(&self) -> String {
+        let name = [
+            self.mqtt.node.as_str(),
+            match self.backend {
+                Backend::Wyoming => self.wyoming.name.as_str(),
+                Backend::Agent => self.agent.name.as_str(),
+                _ => "",
+            },
+        ]
+        .into_iter()
+        .find(|name| !name.trim().is_empty())
+        .unwrap_or("quacksat");
+        let slug: String = name
+            .trim()
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect();
+        let slug = slug.trim_matches('_').to_string();
+        if slug.is_empty() { "quacksat".into() } else { slug }
+    }
+
     pub fn load(path: &str) -> anyhow::Result<Self> {
         let text = std::fs::read_to_string(path)?;
         Ok(toml::from_str(&text)?)
@@ -386,6 +458,16 @@ mod tests {
     fn the_default_prompt_has_no_source_indentation() {
         let prompt = LlmService::default().system_prompt;
         assert!(!prompt.contains("  "), "double space in: {prompt}");
+    }
+
+    #[test]
+    fn the_mqtt_node_comes_from_the_backend_and_is_topic_safe() {
+        let config: Config = toml::from_str("backend = \"wyoming\"\n[wyoming]\nname = \"Duck Kitchen\"").unwrap();
+        assert_eq!(config.mqtt_node(), "duck_kitchen");
+        let config: Config = toml::from_str("backend = \"direct\"").unwrap();
+        assert_eq!(config.mqtt_node(), "quacksat");
+        let config: Config = toml::from_str("backend = \"agent\"\n[mqtt]\nnode = \"papera-1\"").unwrap();
+        assert_eq!(config.mqtt_node(), "papera_1");
     }
 
     #[test]

@@ -11,6 +11,30 @@ MuJoCo twin of the Microduck — never yet on a physical duck.
 
 ## [Unreleased]
 
+### Added
+
+- **The body as a Home Assistant device, over MQTT** (ADR 0007).
+  `[mqtt]`, opt-in, on every backend: quacksat publishes one discovery
+  payload and Home Assistant builds the device — buttons for forward,
+  turn left/right, stop, head to the center, one per skill, one per
+  sound (disabled), one per place with the navigation; the head as three
+  sliders; battery, health, mode, where, journey and last-answer
+  sensors. Every command is one call of the tool table, with its clamps.
+  A hand-rolled MQTT 3.1.1 client (QoS 0, last will, credentials
+  mandatory). A `go_to` command takes a place by name, matched without
+  case or article. Example sentence automations, Speech-to-Phrase
+  sentences on the areas and a blueprint in `docs/home-assistant/`,
+  Italian and English, tested against Home Assistant 2026.10 and
+  Speech-to-Phrase 1.4.3.
+
+### Changed
+
+- **One walk at a time, in the whole process.** `body::timed_move`
+  refuses a walk while another is pumped, whoever asked, and
+  `body::halt` ends the one in progress at its next tick; `robot.move`
+  answers `stopped: true` with the seconds actually walked when it was
+  cut short.
+
 ## [0.1.0-rc1] - 2026-10-03
 
 The first release candidate: the voice satellite as five weeks of history
