@@ -56,11 +56,12 @@ docs/todo.it.md     lavoro aperto
 
 ## Stato
 
-**v0.1.0-rc1** (2026-10-03), la prima release candidate: un pacchetto
-d'installazione per l'anatra a ogni release ([Installare da una
+**v0.1.0-rc2** (2026-10-10), la seconda release candidate: il corpo
+della papera in Home Assistant, via MQTT. Un pacchetto d'installazione
+per l'anatra a ogni release ([Installare da una
 release](#installare-da-una-release)); cosa contiene è nel
 [CHANGELOG](CHANGELOG.it.md), lo stato e i limiti noti nelle
-[note di rilascio](docs/release-notes-v0.1.0-rc1.it.md).
+[note di rilascio](docs/release-notes-v0.1.0-rc2.it.md).
 
 Funzionante, validato su un Mac di sviluppo contro servizi reali (un
 Home Assistant, una piattaforma agente, LLM locali) e col gemello MuJoCo

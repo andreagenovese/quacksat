@@ -55,11 +55,11 @@ docs/todo.md        open work
 
 ## Status
 
-**v0.1.0-rc1** (2026-10-03), the first release candidate: an install
-package for the duck on every release ([Installing from a
-release](#installing-from-a-release)); what is in it is in the
-[CHANGELOG](CHANGELOG.md), its status and known limits in the
-[release notes](docs/release-notes-v0.1.0-rc1.md).
+**v0.1.0-rc2** (2026-10-10), the second release candidate: the duck's
+body in Home Assistant, over MQTT. An install package for the duck on
+every release ([Installing from a release](#installing-from-a-release));
+what is in it is in the [CHANGELOG](CHANGELOG.md), its status and known
+limits in the [release notes](docs/release-notes-v0.1.0-rc2.md).
 
 Working, validated on a development Mac against real services (a Home
 Assistant install, an agent platform, local LLMs) and with the MuJoCo

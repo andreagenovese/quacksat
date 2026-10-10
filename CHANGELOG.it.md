@@ -12,6 +12,12 @@ MuJoCo del Microduck — mai ancora su un'anatra fisica.
 
 ## [Unreleased]
 
+## [0.1.0-rc2] - 2026-10-10
+
+Il corpo della papera in Home Assistant: la seconda release candidate.
+Stato e limiti noti:
+[docs/release-notes-v0.1.0-rc2.it.md](docs/release-notes-v0.1.0-rc2.it.md).
+
 ### Aggiunto
 
 - **Il corpo come dispositivo di Home Assistant, via MQTT** (ADR 0007).
@@ -35,6 +41,9 @@ MuJoCo del Microduck — mai ancora su un'anatra fisica.
   `docs/try-without-a-duck.it.md` — un robotd `--fake` vero, microfono e
   altoparlanti del portatile, e la configurazione per `wyoming` (con
   `[mqtt]`), `agent` (prima la modalità finta del bridge) e `direct`.
+- **Una guida con le schermate** per Home Assistant:
+  `docs/home-assistant/setup-guide.it.md` — il satellite Wyoming e il
+  dispositivo MQTT configurati insieme, passo per passo.
 
 ### Modificato
 
@@ -159,5 +168,6 @@ Note di rilascio:
   la cross-build a ogni push e allega il pacchetto, il binario nudo e i
   loro checksum alla release di un tag `v*`.
 
-[Unreleased]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc1...HEAD
+[Unreleased]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc2...HEAD
+[0.1.0-rc2]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc1...v0.1.0-rc2
 [0.1.0-rc1]: https://github.com/andreagenovese/quacksat/releases/tag/v0.1.0-rc1

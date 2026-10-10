@@ -11,6 +11,12 @@ MuJoCo twin of the Microduck — never yet on a physical duck.
 
 ## [Unreleased]
 
+## [0.1.0-rc2] - 2026-10-10
+
+The duck's body in Home Assistant: the second release candidate. Its
+status and known limits:
+[docs/release-notes-v0.1.0-rc2.md](docs/release-notes-v0.1.0-rc2.md).
+
 ### Added
 
 - **The body as a Home Assistant device, over MQTT** (ADR 0007).
@@ -34,6 +40,9 @@ MuJoCo twin of the Microduck — never yet on a physical duck.
   `docs/try-without-a-duck.md` — a real robotd `--fake`, the laptop's
   microphone and speakers, and the config for `wyoming` (with `[mqtt]`),
   `agent` (the bridge's fake mode first) and `direct`.
+- **A setup guide with screenshots** for Home Assistant:
+  `docs/home-assistant/setup-guide.md` — the Wyoming satellite and the
+  MQTT device configured together, step by step.
 
 ### Changed
 
@@ -147,5 +156,6 @@ left it, packaged to install on the duck. Release notes:
   the tests and the cross-build on every push and attaches the package,
   the bare binary and their checksums to the release of a `v*` tag.
 
-[Unreleased]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc1...HEAD
+[Unreleased]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc2...HEAD
+[0.1.0-rc2]: https://github.com/andreagenovese/quacksat/compare/v0.1.0-rc1...v0.1.0-rc2
 [0.1.0-rc1]: https://github.com/andreagenovese/quacksat/releases/tag/v0.1.0-rc1
