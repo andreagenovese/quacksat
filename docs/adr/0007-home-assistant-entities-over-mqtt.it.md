@@ -110,17 +110,17 @@ dell'LLM non potessero già mandare, e i limiti sono le stesse costanti.
 |---|---|---|---|
 | Avanti | `button` | `robot.move {vx: 0.3, duration_s: step_s}` | `step_s` di default 2 s, massimo 3 (il limite del tool); ≈ 20 cm |
 | Gira a sinistra / destra | `button` ×2 | `robot.move {vx: 0.3, vyaw: ±0.7, duration_s: turn_s}` | la papera non gira sul posto; `turn_s` di default 2 s ≈ 90° |
-| Stop | `button` | ferma la camminata che questo thread sta pompando | vedi §4 |
+| Stop | `button` | ferma la camminata in corso, chiunque l'abbia avviata | vedi §4 |
 | Testa pitch / yaw / roll | `number` ×3 | `robot.head` | min/max sono i limiti del tool; lo stato è l'ultimo valore inviato |
 | Testa al centro | `button` | `robot.head {}` | |
-| Una per skill | `button` | `robot.skill {name}` | costruiti da `robot.skills` alla connessione; ripubblicati se il robot torna con una lista diversa |
+| Uno per skill | `button` | `robot.skill {name}` | costruiti da `robot.skills` alla connessione; ripubblicati se il robot torna con una lista diversa |
 | Uno per suono | `button` | `robot.sound {tag}` | `enabled_by_default: false`, sei pulsanti affollerebbero la pagina del dispositivo |
 | Uno per posto | `button` | `robot.go_to {place}` | solo se quack-navd risponde; costruiti da `robot.list_places`, ripubblicati quando un posto viene memorizzato o dimenticato |
 | Batteria | `sensor` | `robot.state` → `battery` | come la riporta robotd |
 | In salute | `binary_sensor` (`problem`) | `robot.state` → `healthy`, `reason` come attributo | |
 | Modo | `sensor` | `robot.state` → `mode` | |
-| Dove | `sensor` | `robot.where_am_i` / `robot.map_status` | solo con la navigazione: il nome del posto, o la posa come attributi |
-| Viaggio | `sensor` | `robot.map_status` | solo con la navigazione: fermo, in cammino, arrivata, fallito, con il motivo |
+| Dove | `sensor` | `robot.where_am_i` / `robot.map_status` | solo con la navigazione: il nome del posto più vicino |
+| Viaggio | `sensor` | `robot.map_status` | solo con la navigazione: lo stato di quack-navd così com'è (idle, running, relocalizing, searching, done, stopped, failed), con il motivo |
 | Ultima risposta | `sensor` | i topic di risultato | la risposta all'ultimo comando come la direbbe la papera; tiene anche Home Assistant sempre sottoscritto a `result/+` — senza, un'automazione che preme e poi aspetta perdeva una risposta più veloce della sua stessa sottoscrizione (misurato: `go_to` ha risposto in meno di un millisecondo) |
 
 **I posti: pulsanti per la mano, un comando per nome per la voce.** Un
@@ -134,8 +134,7 @@ posto si può chiedere anche per nome: `cmd/go_to` riceve il posto così
 come è stato detto, quacksat lo confronta con `robot.list_places`
 ignorando maiuscole e un articolo iniziale (il, lo, la, l', i, gli,
 le), e risponde su `result/go_to` con `{ok: true, place}` oppure
-`{ok: false, error, places}` — "nessun posto chiamato garage", e quelli
-che conosce. È l'unico comando non legato a un'entità; chi lo chiama è
+`{ok: false, error, detail}` — "nessun posto chiamato garage". È l'unico comando non legato a un'entità; chi lo chiama è
 un'automazione a frase (§7).
 
 Non una `select`: se l'agente di Home Assistant imposti un'opzione a
@@ -237,7 +236,7 @@ satellite finiscono nella stessa stanza):
 - l'unico comando senza entità: `quacksat/<node>/cmd/go_to`, con il
   nome del posto come contenuto (§3);
 - risultati: `quacksat/<node>/result/<entità>` (e `result/go_to`),
-  `{ok, error?}`, non retained — ciò su cui un'automazione può
+  `{ok, error?, detail?}`, non retained — ciò su cui un'automazione può
   aspettare;
 - stato: `quacksat/<node>/state`, un solo documento JSON, retained,
   letto da ogni sensore con un value template;
@@ -287,7 +286,7 @@ actions:
   - wait_for_trigger:
       - trigger: mqtt
         topic: quacksat/quacksat/result/forward
-    timeout: 3
+    timeout: 5
   - set_conversation_response: >-
       {% if not wait.trigger %}Il robot non risponde.
       {% elif wait.trigger.payload_json.ok %}Vado!
@@ -295,7 +294,7 @@ actions:
 ```
 
 — così "papera avanza", "papera gira a destra", "papera fermati",
-"papera fai la capriola", "papera alza la testa", "papera quanta
+"papera fai la capriola", "papera guarda a sinistra", "papera quanta
 batteria hai" ricevono come risposta ciò che è successo davvero, non un
 "Vado!" detto prima che quacksat rifiutasse. È a questo che servono i
 topic di risultato (§6).
@@ -305,8 +304,8 @@ Regole che gli esempi seguono, per via di chi ascolta:
 - **Solo liste chiuse**, scritte per esteso nel trigger (skill,
   direzioni, pose della testa): un segnaposto libero arriva a
   Speech-to-Phrase solo per i nomi che conosce già.
-- **Gli angoli della testa sono parole, non numeri.** "Alza / abbassa /
-  gira a sinistra la testa" corrispondono a pose fisse.
+- **Gli angoli della testa sono parole, non numeri.** "Guarda a sinistra / a
+  destra / avanti" corrispondono a pose fisse.
 - **I sensori hanno una frase loro.** La domanda di serie sui sensori
   non sopravvive a Speech-to-Phrase in italiano, quindi "papera quanta
   batteria hai" è un'automazione che legge il sensore e lo dice.
@@ -324,7 +323,7 @@ cambiano man mano che la papera impara la casa.
    triggers:
      - trigger: conversation
        command:
-         - "papera (vai|va) [in|nel|nella|al|alla] {posto}"
+         - "papera (vai|va) [in|nel|nella|nello|al|alla|allo|sul|sulla|sullo] {posto}"
    actions:
      - action: mqtt.publish
        data:
@@ -333,7 +332,7 @@ cambiano man mano che la papera impara la casa.
      - wait_for_trigger:
          - trigger: mqtt
            topic: quacksat/quacksat/result/go_to
-       timeout: 3
+       timeout: 5
      - set_conversation_response: >-
          {% if not wait.trigger %}Il robot non risponde.
          {% elif wait.trigger.payload_json.ok %}Ci vado.
@@ -353,7 +352,7 @@ cambiano man mano che la papera impara la casa.
      QuacksatGoArea:
        data:
          - sentences:
-             - "papera (vai|va) (in|nel|nella|al|alla) {area}"
+             - "papera (vai|va) (in|nel|nella|nello|al|alla|allo|sul|sulla|sullo) {area}"
    ```
 
    Ogni stanza di Home Assistant diventa un posto che Speech-to-Phrase
@@ -361,8 +360,8 @@ cambiano man mano che la papera impara la casa.
    prova ("Studio") è stata sentita dopo il riaddestramento. Da qui il
    consiglio della documentazione d'installazione: **dare ai posti
    della papera i nomi delle aree di Home Assistant.**
-3. **Un blueprint per i posti che non sono stanze** ("Papera, vai al
-   posto", un elenco di frasi come "papera vai in terrazza").
+3. **Un blueprint per i posti che non sono stanze** ("Papera, vai in un posto
+   (elenco di frasi)", un elenco di frasi come "papera vai in terrazza").
    Speech-to-Phrase le impara attraverso le frasi dei trigger, senza un
    file suo; l'elenco si aggiorna a mano quando la papera impara o
    dimentica un posto.
@@ -376,9 +375,10 @@ brevi, quelli per cui serve la voce.
 **Un'aggiunta: un agente LLM.** Dove l'agente di Home Assistant è un
 LLM, o Arkimede raggiunge Home Assistant tramite il suo server MCP, i
 pulsanti esposti gli sono visibili così come sono, e diventano possibili
-le richieste libere. Per tutto ciò che ha un parametro gli esempi
-aggiungono script di Home Assistant (`script.papera_vai_al_posto` con
-il suo posto, `script.papera_testa` con i suoi angoli): uno script
+le richieste libere. Per tutto ciò che ha un parametro va bene uno
+script di Home Assistant (per esempio `script.papera_vai_al_posto` con
+il suo posto, o `script.papera_testa` con i suoi angoli; qui non ne
+viene fornito nessuno): uno script
 esposto è un tool con un nome, una descrizione e dei campi, che un LLM
 chiama in modo affidabile e che aspetta il topic di risultato come le
 automazioni. In quacksat non cambia niente per questo.
@@ -412,6 +412,7 @@ port = 1883
 username = ""            # obbligatorio se abilitato
 password = ""            # obbligatorio se abilitato
 node = ""                # default: il nome del backend, altrimenti "quacksat"
+device_name = ""         # default: "Papera" o "Duck", secondo [announce] language
 discovery_prefix = "homeassistant"
 base_topic = "quacksat"
 step_s = 2.0             # una pressione di avanti, massimo 3

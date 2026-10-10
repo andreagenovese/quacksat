@@ -2,6 +2,10 @@
 
 - Stato: accettato
 - Data: 2026-08-31
+- Modificata: un terzo backend, `direct`, e quello di bring-up `none`
+  sono arrivati dopo; il dispositivo in Home Assistant (`[mqtt]`, ADR
+  0007) gira accanto a qualunque di essi. La decisione qui sotto non
+  cambia.
 
 ## Contesto
 

@@ -9,3 +9,5 @@ CLAUDE.local*
 /bridge/config*.toml
 !/bridge/config.example.toml
 __pycache__/
+/CLAUDE.md
+/CLAUDE.it.md

@@ -2,6 +2,9 @@
 
 - Status: accepted
 - Date: 2026-08-31
+- Amended: a third backend, `direct`, and the bring-up `none` came later;
+  the Home Assistant device (`[mqtt]`, ADR 0007) runs beside any of
+  them. The decision below is unchanged.
 
 ## Context
 

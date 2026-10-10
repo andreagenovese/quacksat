@@ -58,3 +58,10 @@ Lavoro aperto su quacksat. Copia inglese: [todo.md](todo.md).
       chat (`chat.sock`: testo in ingresso, risposta in streaming, i tool
       chiamati dall'agente), con un lock del turno condiviso col
       microfono. Il progetto è nel `docs/study/map-app.md` di quack-nav.
+- [ ] 2026-10-10: **il dispositivo in Home Assistant, ciò che resta** (ADR
+      0007, domande aperte): da dove l'add-on Speech-to-Phrase legge i
+      suoi file di frasi e quando si riaddestra (una nuova area o una
+      nuova frase del blueprint potrebbe richiedere un riavvio
+      dell'add-on), verificato su un add-on vero; e la mancanza di una
+      guardia del dirupo nei passi manuali, quando la papera avrà le
+      gambe.

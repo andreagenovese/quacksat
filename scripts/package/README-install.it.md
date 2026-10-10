@@ -99,7 +99,7 @@ potrebbe più leggerla.)
 | `"none"` | bring-up: solo wake word e cinguettio | niente |
 | `"direct"` | l'anatra stessa chiama un endpoint LLM, uno di trascrizione e uno di sintesi vocale, in dialetto OpenAI (una chiave cloud o server locali) | `[direct.llm]`, `[direct.stt]`, `[direct.tts]` |
 | `"agent"` | l'anatra manda l'audio a un bridge su un server, che fa STT → LLM → TTS | `[agent] url` (e il bridge, sotto) |
-| `"wyoming"` | l'anatra è un satellite di Home Assistant Assist | `[wyoming] bind`, poi aggiungerla in Home Assistant |
+| `"wyoming"` | l'anatra è un satellite di Home Assistant Assist | `[wyoming] bind`, poi aggiungerla in Home Assistant; `[mqtt]` (sotto) aggiunge il corpo |
 
 `direct`, il più semplice senza un server:
 
@@ -210,6 +210,23 @@ questo posto, vai in cucina, mappa la casa) si aggiungono a quelli del
 satellite. L'anatra dice com'è finito un viaggio su cui è stata mandata,
 tra un turno e l'altro: con `direct` con la sua voce, con `agent`
 attraverso il bridge. Il backend `wyoming` per ora non dice niente da sé.
+
+### Il corpo in Home Assistant (facoltativo, ogni backend)
+
+```toml
+[mqtt]
+enabled = true
+host = "homeassistant.local"   # il broker MQTT (l'add-on Mosquitto di Home Assistant)
+port = 1883
+username = "quacksat"          # obbligatori: i topic comandano un robot che cammina
+password = "…"
+```
+
+La papera compare da sola in Home Assistant, come dispositivo con
+pulsanti per camminare, girare, fermarsi ed eseguire le skill, la testa
+come cursori, e sensori di batteria, salute e viaggio. L'utente del
+broker, le automazioni a frase d'esempio e i topic sono in
+[docs/home-assistant/README.it.md](https://github.com/andreagenovese/quacksat/blob/main/docs/home-assistant/README.it.md).
 
 ## 4. Controllare
 

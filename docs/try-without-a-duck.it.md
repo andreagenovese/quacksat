@@ -39,6 +39,7 @@ cargo build -p quacksat
 (`quacksat-dev.toml`, fuori da git se conterrà chiavi):
 
 ```toml
+backend = "wyoming"     # o "agent" / "direct": vedi le sezioni sotto
 robotd_socket = "/tmp/qs/robotd.sock"
 
 [audio]
@@ -69,9 +70,9 @@ metti `[nav] enabled = false` perché smetta di chiederlo.
 Cosa serve: un Home Assistant con una pipeline di Assist (STT, TTS e
 agente qualsiasi), raggiungibile dal portatile.
 
-```toml
-backend = "wyoming"
+`backend = "wyoming"` in cima al file, poi:
 
+```toml
 [wyoming]
 bind = "0.0.0.0:10700"
 name = "quacksat"
@@ -108,9 +109,9 @@ python3 -m venv .venv && .venv/bin/pip install websockets
 .venv/bin/python bridge.py --fake
 ```
 
-```toml
-backend = "agent"
+`backend = "agent"` in cima al file, poi:
 
+```toml
 [agent]
 url = "ws://127.0.0.1:8765"
 name = "quacksat"
@@ -120,7 +121,7 @@ Di' "hey Daffy" e qualunque cosa: il bridge finto risponde con una frase
 fissa e un tono, e chiama `robot.sound` una volta per turno — il "this
 robot has no voice" del robot è la prova che il percorso dei tool è
 arrivato a robotd. Per una conversazione vera, `bridge.py --config
-config.toml` con i tuoi endpoint STT, LLM e TTS (`bridge/README.md`).
+config.toml` con i tuoi endpoint STT, LLM e TTS (`bridge/README.it.md`).
 
 ## 4. direct — il satellite chiama i servizi da solo
 
@@ -129,9 +130,9 @@ Cosa serve: tre endpoint in dialetto OpenAI — un LLM `/chat/completions`
 speaches / faster-whisper-server) e un TTS `/audio/speech` che
 restituisce WAV (per esempio openedai-speech con Piper).
 
-```toml
-backend = "direct"
+`backend = "direct"` in cima al file, poi:
 
+```toml
 [direct.llm]
 base_url = "http://localhost:11434/v1"
 model = "qwen3:8b"

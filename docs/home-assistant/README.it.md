@@ -30,6 +30,12 @@ user homeassistant
 topic readwrite #
 ```
 
+Un file ACL sostituisce il "tutti possono fare tutto" predefinito del
+broker: ogni altro utente del broker ha bisogno di righe sue (su Home
+Assistant OS almeno `user addons` con `topic readwrite #`, più
+Zigbee2MQTT o qualunque altra cosa si colleghi), altrimenti perde
+l'accesso.
+
 ## Dalla parte di quacksat
 
 In `/etc/robot/quacksat.toml`:
@@ -71,7 +77,8 @@ Con il nodo `quacksat` e i nomi in italiano:
 
 Ogni movimento è un impulso: una pressione cammina per qualche secondo e
 si ferma. Una pressione mentre la papera cammina, o mentre è in corso un
-viaggio, viene rifiutata ("sto già camminando"), e lo **stop** vince
+viaggio, viene rifiutata, e la risposta dice perché ("sto già camminando", "sto
+già andando da qualche parte", "sono occupata"); e lo **stop** vince
 sempre. I passi manuali non hanno la guardia del dirupo (la guardia
 viaggia con i viaggi della navigazione): tieni la papera lontana dal
 bordo di un tavolo quando premi avanti.
@@ -104,6 +111,9 @@ questa cartella:
    posti che non sono stanze ("il divano"): una frase per posto, che
    Speech-to-Phrase impara dal trigger. Copialo in
    `config/blueprints/automation/quacksat/` e crea un'automazione da esso.
+   Può stare accanto all'automazione "vai": quando entrambe
+   riconoscono una frase, Home Assistant ne esegue una sola (verificato
+   il 2026-10-10).
 
 Con faster-whisper basta il primo file, posti compresi: l'automazione
 "vai" accetta qualunque nome e quacksat dice se lo conosce.

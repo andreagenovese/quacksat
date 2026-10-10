@@ -104,7 +104,8 @@ fondo, che è ciò che dice il pin oggi. Note complementari:
   `/etc/robot/updater.toml` con il proprio `install_dir = /opt/quacksat`,
   source e chiave di firma riusa l'intero motore di update firmati senza
   ingarbugliarsi con il componente daemon. Non serve per la v0.
-- Installazione: `install-quacksat.sh` idempotente che scrive binario,
+- Installazione: `install-quacksat.sh` idempotente (è
+  diventato `scripts/install-on-duck.sh`) che scrive binario,
   unit, sysusers (`/etc/sysusers.d/quacksat.conf`, non /usr/lib), config,
   directory di stato; `daemon-reload && enable --now`.
 

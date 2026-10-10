@@ -93,7 +93,8 @@ end, which is what the pin says today. Companion notes:
   `/etc/robot/updater.toml` with its own `install_dir = /opt/quacksat`,
   source, and signing key reuses the whole signed-update engine without
   entangling with the daemon component. Not needed for v0.
-- Install: idempotent `install-quacksat.sh` writing binary, unit,
+- Install: idempotent `install-quacksat.sh` (it became
+  `scripts/install-on-duck.sh`) writing binary, unit,
   sysusers (`/etc/sysusers.d/quacksat.conf`, not /usr/lib), config,
   state dir; `daemon-reload && enable --now`.
 

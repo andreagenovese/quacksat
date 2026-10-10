@@ -50,7 +50,8 @@ packaged so it installs on the duck from a download.
   (the one that heard you best answers), and **MCP**: the bridge's server
   for MCP-native agents, and the duck's own in `direct`.
 - **The body**: robot tools through robotd's socket as an unprivileged
-  client (move, head, look, sound, skills, state, a camera frame),
+  client (move, head, look, sound, skills, state; a camera frame is
+  declared but answers "unsupported" until mediad),
   surviving a robotd restart; a thinking pose while the answer is
   computed.
 - **The house**: quack-navd's tools spliced in when its socket answers —

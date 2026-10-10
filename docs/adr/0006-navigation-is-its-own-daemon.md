@@ -58,8 +58,9 @@ wire: NDJSON, JSON-RPC 2.0, one connection per caller. Two methods:
 `nav.catalog` returns the tool catalog (JSON Schema, the shape ADR 0004
 defined), `nav.call` executes one of them. The daemon owns the map
 lane, the guard, the registry, the explore job and the homecoming, and
-reads its own `/etc/robot/quack-nav.toml` — `[map]`, `[gait]` and
-`[homecoming]` moved there with the code.
+reads its own `/etc/robot/quack-nav.toml` — `[map]` and
+`[homecoming]` moved there with the code; `[gait]` was copied, since
+`robot.move` still trims the walk on the satellite.
 
 (2026-09-23: first written as `/run/quack-nav.sock`, which the
 unprivileged unit cannot create under `ProtectSystem=strict`; the socket

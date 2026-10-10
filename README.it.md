@@ -7,6 +7,12 @@ Microduck di Pollen Robotics.
 > approvato da o supportato da Pollen Robotics o Hugging Face.
 > "Microduck" è usato solo per identificare l'hardware di destinazione.
 
+> **Non hai ancora la papera?** Ogni modalità gira oggi su un portatile —
+> un `robotd --fake` vero come corpo, microfono e altoparlanti del
+> portatile come quelli della papera: **[Provare quacksat senza la
+> papera](docs/try-without-a-duck.it.md)** percorre `wyoming` (con il
+> corpo in Home Assistant), `agent` e `direct`, passo per passo.
+
 ## Cosa fa
 
 quacksat trasforma il Microduck in un assistente vocale itinerante. Cattura
@@ -26,7 +32,7 @@ a uno di tre backend intercambiabili selezionati in `/etc/robot/quacksat.toml`:
   server in casa. Può anche servire il proprio endpoint MCP così gli
   agenti MCP-capable guidano il robot direttamente.
 
-In entrambe le modalità quacksat è un client non privilegiato di `robotd`,
+Con ogni backend quacksat è un client non privilegiato di `robotd`,
 il demone di sistema del Microduck: invia intenti e RPC (move, head, skill)
 sul socket JSON-RPC e non tocca mai direttamente il bus hardware. Se
 quacksat va in crash o si blocca, il deadman di robotd mantiene il robot al
@@ -61,19 +67,22 @@ Home Assistant, una piattaforma agente, LLM locali) e col gemello MuJoCo
 del Microduck. La validazione sul robot è in attesa — dicembre 2026.
 
 - Wake word locale (modelli openWakeWord sul runtime pure-Rust tract;
-  frasi custom supportate — vedi `docs/custom-wake-word.md`),
+  frasi custom supportate — vedi `docs/custom-wake-word.it.md`),
   segmentazione dei turni via VAD, riproduzione half-duplex, client
   robotd sul modello di padd, e un segnale di pensiero: una lenta
   oscillazione della testa mentre la risposta viene calcolata, un
   "tock" basso di resa su timeout o errore (config `[thinking]`).
 - `wyoming`: si registra in Home Assistant ed esegue il giro Assist
-  completo (wake → STT → intent → TTS). Con `[mqtt]` (ADR 0007, su
-  qualunque backend) anche il corpo è un dispositivo di Home Assistant:
-  pulsanti per camminare, girare, fermarsi ed eseguire le skill, la
-  testa come cursori, sensori di batteria e salute, un pulsante per
-  posto, e automazioni a frase d'esempio che rispondono con ciò che la
-  papera ha fatto davvero — `docs/home-assistant/README.it.md`.
-- `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.md`)
+  completo (wake → STT → intent → TTS).
+- Il corpo come dispositivo di Home Assistant (`[mqtt]`, ADR 0007, su
+  qualunque backend): pulsanti per camminare, girare, fermarsi ed
+  eseguire le skill, la testa come cursori, sensori di batteria e
+  salute, un pulsante per posto, e automazioni a frase d'esempio che
+  rispondono con ciò che la papera ha fatto davvero —
+  `docs/home-assistant/README.it.md`. Con `wyoming` fa della papera un
+  robot intero in Assist: provato da capo a fondo su un Home Assistant
+  in uso ogni giorno, senza la papera (2026-10-10).
+- `agent`: il protocollo WebSocket neutro (`docs/agent-protocol.it.md`)
   più il bridge di riferimento in `bridge/` — STT/LLM/TTS come endpoint
   url+key in dialetto OpenAI, tool robot dietro una allowlist
   esaustiva, e un server MCP che li espone agli agenti MCP-native. Multi-anatra: più satelliti su un bridge, arbitraggio
@@ -101,13 +110,11 @@ del Microduck. La validazione sul robot è in attesa — dicembre 2026.
   configurazione, poi la chat — vedi [docs/todo.it.md](docs/todo.it.md)).
 - Luoghi, mappatura e viaggi: l'anatra impara il nome del posto in cui si
   trova ("questa è la cucina"), risponde a "dove sei", mappa una casa da
-  sola chiedendo "qui dove siamo?" nelle zone senza nome, e cammina fino
-  a un posto che conosce — tutto attraverso i tool del demone
+  sola e cammina fino a un posto che conosce — tutto attraverso i tool del demone
   (`robot.where_am_i`, `robot.remember_place`, `robot.map_status`,
   `robot.map_step`, `robot.map_explore`, `robot.go_to`, la libreria
   delle mappe), innestati nel catalogo che l'agente vede. I nomi sono
-  legati a coordinate della mappa, mai riconosciuti a vista; un reset
-  della mappa li rende stantii finché non vengono reinsegnati.
+  legati a coordinate della mappa, mai riconosciuti a vista.
 - Ciò che la papera dice da sé (`[announce]`, 2026-10-03): un viaggio
   risponde subito e prosegue in quack-navd, quindi il satellite segue
   `robot.map_status` (ogni 2 s mentre qualcosa si muove, ogni 10 s
@@ -158,12 +165,17 @@ Niente copia del repository e niente compilazione: installa il binario,
 la unit systemd, l'account di servizio e la config d'esempio, e scarica
 i modelli della wake word sull'anatra. Ogni passo, e cosa impostare nella
 config (il backend, gli endpoint e le loro chiavi, la wake word, l'audio,
-il socket di quack-navd, gli annunci dell'anatra), è nel
+il socket di quack-navd, gli annunci dell'anatra, il dispositivo in
+Home Assistant), è nel
 [README-install.it.md](scripts/package/README-install.it.md) del
 pacchetto. Il bridge non c'è: gira su un server, da una copia del
 repository allo stesso tag (sotto).
 
 ## Come iniziare
+
+Non hai la papera sottomano? Parti da
+[docs/try-without-a-duck.it.md](docs/try-without-a-duck.it.md): le
+stesse tre modalità su un portatile.
 
 ### 1. Build e installazione sull'anatra (da una copia del repository)
 
@@ -188,7 +200,7 @@ conterrà delle API key), e i modelli wake word in
 `/var/lib/quacksat/models` — inclusa **«hey Daffy»**, la wake word
 propria di quacksat, che è nel repo (`models/hey_daffy.onnx`); ogni
 altro modello nella tua cartella `models/` locale (ad es. allenato
-secondo `docs/custom-wake-word.md`) viaggia insieme, e i modelli di
+secondo `docs/custom-wake-word.it.md`) viaggia insieme, e i modelli di
 feature condivisi che lì mancano li scarica sull'anatra
 `scripts/fetch-wake-models.sh`, verificati col loro sha256.
 `scripts/package.sh <versione> <binario> <dir>` prepara il pacchetto di
@@ -217,7 +229,7 @@ python3 -m venv .venv && .venv/bin/pip install websockets "mcp>=2" uvicorn
 Punta il satellite verso il bridge (`[agent] url =
 "ws://<host-bridge>:8765"`). `--fake` al posto di `--config` esercita
 l'intero protocollo senza servizi AI. Dettagli e profili dei provider:
-`bridge/README.md`.
+`bridge/README.it.md`.
 
 ### 3. Il bridge in Docker
 

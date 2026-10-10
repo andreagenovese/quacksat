@@ -7,6 +7,12 @@ Pollen Robotics Microduck.
 > with, endorsed by, or supported by Pollen Robotics or Hugging Face.
 > "Microduck" is used only to identify the target hardware.
 
+> **No duck yet?** Every mode runs on a laptop today — a real `robotd
+> --fake` as the body, the laptop's microphone and speakers as the
+> duck's: **[Trying quacksat without a duck](docs/try-without-a-duck.md)**
+> walks through `wyoming` (with the body in Home Assistant), `agent` and
+> `direct`, step by step.
+
 ## What it does
 
 quacksat turns the Microduck into a roaming voice assistant. It captures
@@ -26,7 +32,7 @@ three interchangeable backends selected in `/etc/robot/quacksat.toml`:
   serve its own MCP endpoint so MCP-capable agents drive the robot
   directly.
 
-In both modes quacksat is an unprivileged client of `robotd`, the Microduck
+On every backend quacksat is an unprivileged client of `robotd`, the Microduck
 system daemon: it sends intents and RPCs (move, head, skills) over the
 JSON-RPC socket and never touches the hardware bus directly. If quacksat
 crashes or hangs, robotd's deadman keeps the robot safe.
@@ -65,12 +71,14 @@ twin of the Microduck. On-robot validation is pending — December 2026.
   and a thinking cue: a slow head sway while the answer is computed,
   a low give-up tock on timeout or error (`[thinking]` config).
 - `wyoming`: registers in Home Assistant and runs the full Assist
-  round-trip (wake → STT → intent → TTS). With `[mqtt]` (ADR 0007, on
-  any backend) the body is a Home Assistant device too: buttons that
-  walk, turn, stop and run skills, the head as sliders, battery and
-  health sensors, one button per place, and example sentence
-  automations that answer with what the duck actually did —
-  `docs/home-assistant/README.md`.
+  round-trip (wake → STT → intent → TTS).
+- The body as a Home Assistant device (`[mqtt]`, ADR 0007, on any
+  backend): buttons that walk, turn, stop and run skills, the head as
+  sliders, battery and health sensors, one button per place, and
+  example sentence automations that answer with what the duck actually
+  did — `docs/home-assistant/README.md`. With `wyoming` it makes the
+  duck a whole robot in Assist: tried end to end on a Home Assistant
+  in everyday use, without the duck (2026-10-10).
 - `agent`: the neutral WebSocket protocol (`docs/agent-protocol.md`)
   plus the reference bridge in `bridge/` — STT/LLM/TTS as OpenAI-dialect
   url+key endpoints, robot tools behind an exhaustive allowlist, and an
@@ -153,11 +161,16 @@ No checkout and no build: it installs the binary, the systemd unit, the
 service account and the example config, and downloads the wake-word
 models on the duck. Every step, and what to set in the config (the
 backend, the endpoints and their keys, the wake word, the audio,
-quack-navd's socket, the duck's own announcements), is in the package's
+quack-navd's socket, the duck's own announcements, the Home Assistant
+device), is in the package's
 [README-install.md](scripts/package/README-install.md). The bridge is
 not in it: it runs on a server, from a checkout of the same tag (below).
 
 ## Getting started
+
+No duck at hand? Start from
+[docs/try-without-a-duck.md](docs/try-without-a-duck.md): the same
+three modes on a laptop.
 
 ### 1. Build and install on the duck (from a checkout)
 

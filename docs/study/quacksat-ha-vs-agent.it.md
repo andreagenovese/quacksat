@@ -23,6 +23,9 @@ Domanda: il satellite vocale sull'anatra deve parlare con Home Assistant
 | Dipendenze | HA, add-on esistenti | un server self-hosted (es. Arkimede) | vendor cloud |
 | Rischio principale | limiti della pipeline Assist: rigida, senza barge-in, TTS solo Piper | reinventare pezzi che HA offre gratis (timer, intents, entità) | lock-in, costi, privacy, lingua italiana da verificare |
 
+2026-10: anche il percorso A ha il corpo — il robot come entità di Home
+Assistant via MQTT, su qualunque backend ([ADR 0007](../adr/0007-home-assistant-entities-over-mqtt.it.md)).
+
 ## Come cambia il flusso
 
 ```

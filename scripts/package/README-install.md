@@ -97,7 +97,7 @@ longer read it.)
 | `"none"` | bring-up: wake word and chirp only | nothing |
 | `"direct"` | the duck itself calls an LLM, a speech-to-text and a text-to-speech endpoint, OpenAI dialect (a cloud key or local servers) | `[direct.llm]`, `[direct.stt]`, `[direct.tts]` |
 | `"agent"` | the duck streams to a bridge on a server, which runs STT → LLM → TTS | `[agent] url` (and the bridge, below) |
-| `"wyoming"` | the duck is a Home Assistant Assist satellite | `[wyoming] bind`, then add it in Home Assistant |
+| `"wyoming"` | the duck is a Home Assistant Assist satellite | `[wyoming] bind`, then add it in Home Assistant; `[mqtt]` (below) adds the body |
 
 `direct`, the simplest without a server:
 
@@ -207,6 +207,23 @@ this place, go to the kitchen, map the house) join the satellite's. The
 duck says how a journey it was sent on ended, between turns: with
 `direct` in its own voice, with `agent` through the bridge. The
 `wyoming` backend says nothing on its own yet.
+
+### The body in Home Assistant (optional, any backend)
+
+```toml
+[mqtt]
+enabled = true
+host = "homeassistant.local"   # the MQTT broker (Home Assistant's Mosquitto add-on)
+port = 1883
+username = "quacksat"          # mandatory: the topics drive a robot that walks
+password = "…"
+```
+
+The duck appears in Home Assistant by itself, as a device with buttons
+that walk, turn, stop and run skills, the head as sliders, and battery,
+health and journey sensors. The broker user, the example sentence
+automations and the topics are in
+[docs/home-assistant/README.md](https://github.com/andreagenovese/quacksat/blob/main/docs/home-assistant/README.md).
 
 ## 4. Check
 

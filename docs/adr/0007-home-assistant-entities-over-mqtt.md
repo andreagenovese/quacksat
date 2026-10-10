@@ -104,7 +104,7 @@ already send, and the clamps are the same constants.
 |---|---|---|---|
 | Walk forward | `button` | `robot.move {vx: 0.3, duration_s: step_s}` | `step_s` default 2 s, capped at 3 (the tool's own cap); ≈ 20 cm |
 | Turn left / right | `button` ×2 | `robot.move {vx: 0.3, vyaw: ±0.7, duration_s: turn_s}` | the duck cannot turn in place; `turn_s` default 2 s ≈ 90° |
-| Stop | `button` | ends the walk this thread is pumping | see §4 |
+| Stop | `button` | ends the walk in progress, whoever started it | see §4 |
 | Head pitch / yaw / roll | `number` ×3 | `robot.head` | min/max are the tool's clamps; state is the last value sent |
 | Center head | `button` | `robot.head {}` | |
 | One per skill | `button` | `robot.skill {name}` | built from `robot.skills` at connect; re-published when the robot comes back with a different list |
@@ -113,8 +113,8 @@ already send, and the clamps are the same constants.
 | Battery | `sensor` | `robot.state` → `battery` | as robotd reports it |
 | Healthy | `binary_sensor` (`problem`) | `robot.state` → `healthy`, `reason` as attribute | |
 | Mode | `sensor` | `robot.state` → `mode` | |
-| Where | `sensor` | `robot.where_am_i` / `robot.map_status` | navigation only: the place name, or the pose as attributes |
-| Journey | `sensor` | `robot.map_status` | navigation only: idle, walking, arrived, failed, with the reason |
+| Where | `sensor` | `robot.where_am_i` / `robot.map_status` | navigation only: the nearest place's name |
+| Journey | `sensor` | `robot.map_status` | navigation only: quack-navd's own state (idle, running, relocalizing, searching, done, stopped, failed), with the reason |
 | Last answer | `sensor` | the result topics | the last command's answer as the duck would say it; it also keeps Home Assistant subscribed to `result/+` at all times — without it an automation that presses and then waits missed an answer faster than its own subscription (measured: `go_to` answered in under a millisecond) |
 
 **Places: buttons for the hand, a named command for the voice.** One
@@ -127,8 +127,8 @@ on/off sentences for lights, switches and fans. So a place can also be
 asked for by name: `cmd/go_to` takes the place as spoken, quacksat
 matches it against `robot.list_places` ignoring case and a leading
 article (il, lo, la, l', i, gli, le), and answers on `result/go_to`
-with `{ok: true, place}` or `{ok: false, error, places}` — "no place
-called garage", and the ones it knows. It is the one command not tied
+with `{ok: true, place}` or `{ok: false, error, detail}` — "no place
+called garage". It is the one command not tied
 to an entity; a sentence automation is its caller (§7).
 
 Not a `select`: whether Home Assistant's own agent sets an option by
@@ -221,7 +221,7 @@ room):
 - the one command without an entity: `quacksat/<node>/cmd/go_to`, the
   place name as payload (§3);
 - results: `quacksat/<node>/result/<entity>` (and `result/go_to`),
-  `{ok, error?}`, not retained — what an automation can wait on;
+  `{ok, error?, detail?}`, not retained — what an automation can wait on;
 - state: `quacksat/<node>/state`, one JSON document, retained, read by
   every sensor through a value template;
 - availability, two topics with `availability_mode: all`: quacksat's
@@ -271,7 +271,7 @@ actions:
   - wait_for_trigger:
       - trigger: mqtt
         topic: quacksat/quacksat/result/forward
-    timeout: 3
+    timeout: 5
   - set_conversation_response: >-
       {% if not wait.trigger %}Il robot non risponde.
       {% elif wait.trigger.payload_json.ok %}Vado!
@@ -279,7 +279,7 @@ actions:
 ```
 
 — so "papera avanza", "papera gira a destra", "papera fermati", "papera
-fai la capriola", "papera alza la testa", "papera quanta batteria hai"
+fai la capriola", "papera guarda a sinistra", "papera quanta batteria hai"
 are answered with what actually happened, not with a "Vado!" said
 before quacksat refused. That is what the result topics (§6) are for.
 
@@ -288,8 +288,8 @@ Rules the examples follow, because of who listens:
 - **Closed lists only**, written out in the trigger (skills,
   directions, head poses): a free slot reaches Speech-to-Phrase only
   for the names it already knows.
-- **Head angles are words, not numbers.** "Alza / abbassa / gira a
-  sinistra la testa" map to fixed poses.
+- **Head angles are words, not numbers.** "Guarda a sinistra / a
+  destra / avanti" map to fixed poses.
 - **Sensors get their own sentence.** The built-in sensor question
   does not survive Speech-to-Phrase in Italian, so "papera quanta
   batteria hai" is an automation that reads the sensor and says it.
@@ -307,7 +307,7 @@ they change as the duck learns the house.
    triggers:
      - trigger: conversation
        command:
-         - "papera (vai|va) [in|nel|nella|al|alla] {posto}"
+         - "papera (vai|va) [in|nel|nella|nello|al|alla|allo|sul|sulla|sullo] {posto}"
    actions:
      - action: mqtt.publish
        data:
@@ -316,7 +316,7 @@ they change as the duck learns the house.
      - wait_for_trigger:
          - trigger: mqtt
            topic: quacksat/quacksat/result/go_to
-       timeout: 3
+       timeout: 5
      - set_conversation_response: >-
          {% if not wait.trigger %}Il robot non risponde.
          {% elif wait.trigger.payload_json.ok %}Ci vado.
@@ -336,15 +336,15 @@ they change as the duck learns the house.
      QuacksatGoArea:
        data:
          - sentences:
-             - "papera (vai|va) (in|nel|nella|al|alla) {area}"
+             - "papera (vai|va) (in|nel|nella|nello|al|alla|allo|sul|sulla|sullo) {area}"
    ```
 
    Every room of Home Assistant becomes a place Speech-to-Phrase can
    hear, with no list to keep: an area created during the test
    ("Studio") was heard after retraining. Hence the advice the install
    docs give: **name the duck's places as Home Assistant's areas.**
-3. **A blueprint for the places that are not rooms** ("Papera, vai al
-   posto", a list of sentences such as "papera vai in terrazza").
+3. **A blueprint for the places that are not rooms** ("Papera, vai in un posto
+   (elenco di frasi)", a list of sentences such as "papera vai in terrazza").
    Speech-to-Phrase learns them through the trigger sentences, with no
    file of its own; the list is kept by hand when the duck learns or
    forgets a place.
@@ -358,9 +358,9 @@ is for.
 **An addition: an LLM agent.** Where Home Assistant's agent is an LLM,
 or Arkimede reaches Home Assistant over its MCP server, the exposed
 buttons are visible to it as they are, and free requests become
-possible. For anything with a parameter the examples add Home
-Assistant scripts (`script.papera_vai_al_posto` with its place,
-`script.papera_testa` with its angles): an exposed script is a tool
+possible. For anything with a parameter a Home Assistant script
+works well (say `script.papera_vai_al_posto` with its place, or
+`script.papera_testa` with its angles; none ships here): an exposed script is a tool
 with a name, a description and fields, which an LLM calls reliably and
 which waits on the result topic like the automations. Nothing in
 quacksat changes for this.
@@ -394,6 +394,7 @@ port = 1883
 username = ""            # required when enabled
 password = ""            # required when enabled
 node = ""                # default: the backend's name, else "quacksat"
+device_name = ""         # default: "Papera" or "Duck", by [announce] language
 discovery_prefix = "homeassistant"
 base_topic = "quacksat"
 step_s = 2.0             # one forward press, capped at 3

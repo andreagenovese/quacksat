@@ -56,7 +56,8 @@ download.
   bridge per gli agenti che parlano MCP, e quello dell'anatra in `direct`.
 - **Il corpo**: i tool del robot attraverso il socket di robotd come
   client non privilegiato (movimento, testa, sguardo, suoni, skill,
-  stato, un fotogramma della camera), che sopravvivono a un riavvio di
+  stato; un fotogramma della camera è
+  dichiarato ma risponde "unsupported" finché non c'è mediad), che sopravvivono a un riavvio di
   robotd; una posa pensierosa mentre la risposta si calcola.
 - **La casa**: i tool di quack-navd aggiunti quando il suo socket
   risponde — dove sono, ricorda questo posto, vai in cucina, mappa la

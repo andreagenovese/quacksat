@@ -29,6 +29,11 @@ user homeassistant
 topic readwrite #
 ```
 
+An ACL file replaces the broker's default "everyone may do anything":
+every other user of the broker needs its own lines too (on Home
+Assistant OS at least `user addons` with `topic readwrite #`, plus
+Zigbee2MQTT or whatever else connects), or it loses access.
+
 ## quacksat's side
 
 In `/etc/robot/quacksat.toml`:
@@ -68,8 +73,9 @@ With the node `quacksat` and the Italian names:
 | `sensor.quacksat_last_answer` | the last command's answer, as the duck would say it |
 
 Every motion is an impulse: a press walks for a few seconds and stops.
-A press while the duck is walking, or while a journey runs, is refused
-("I'm already walking"), and **stop** always wins. The manual steps have
+A press while the duck is walking, or while a journey runs, is refused,
+and the answer says why ("I'm already walking", "I'm already on my way
+somewhere", "I'm busy"); and **stop** always wins. The manual steps have
 no cliff guard (the guard rides with the navigation's journeys): keep
 the duck away from the edge of a table when you press forward.
 
@@ -100,7 +106,9 @@ folder:
    For the places that are not rooms ("the sofa"): one sentence per place,
    which Speech-to-Phrase learns from the trigger. Copy it to
    `config/blueprints/automation/quacksat/` and create an automation from
-   it.
+   it. It can live beside the "go to" automation: when both match a
+   sentence, Home Assistant runs only one of them (checked on
+   2026-10-10).
 
 With faster-whisper the first file alone is enough, places included: the
 "go to" automation takes any name and quacksat says whether it knows it.

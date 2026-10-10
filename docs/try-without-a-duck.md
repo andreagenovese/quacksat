@@ -37,6 +37,7 @@ cargo build -p quacksat
 (`quacksat-dev.toml`, outside git if it will hold keys):
 
 ```toml
+backend = "wyoming"     # or "agent" / "direct": see the sections below
 robotd_socket = "/tmp/qs/robotd.sock"
 
 [audio]
@@ -67,9 +68,9 @@ answers and moves but cannot be sent to a place, and says so; set
 What you need: a Home Assistant with an Assist pipeline (any STT, TTS
 and agent), reachable from the laptop.
 
-```toml
-backend = "wyoming"
+`backend = "wyoming"` at the top of the file, then:
 
+```toml
 [wyoming]
 bind = "0.0.0.0:10700"
 name = "quacksat"
@@ -105,9 +106,9 @@ python3 -m venv .venv && .venv/bin/pip install websockets
 .venv/bin/python bridge.py --fake
 ```
 
-```toml
-backend = "agent"
+`backend = "agent"` at the top of the file, then:
 
+```toml
 [agent]
 url = "ws://127.0.0.1:8765"
 name = "quacksat"
@@ -126,9 +127,9 @@ LLM (a local ollama works), an `/audio/transcriptions` STT (e.g.
 speaches / faster-whisper-server) and an `/audio/speech` TTS returning
 WAV (e.g. openedai-speech with Piper).
 
-```toml
-backend = "direct"
+`backend = "direct"` at the top of the file, then:
 
+```toml
 [direct.llm]
 base_url = "http://localhost:11434/v1"
 model = "qwen3:8b"

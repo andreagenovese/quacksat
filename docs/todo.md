@@ -56,3 +56,9 @@ Open work on quacksat. Italian copy: [todo.it.md](todo.it.md).
       streamed answer out, the tools the agent called), with a turn lock
       shared with the microphone. The design is in quack-nav's
       `docs/study/map-app.md`.
+- [ ] 2026-10-10: **the Home Assistant device, what is left** (ADR 0007,
+      open questions): where the Speech-to-Phrase add-on reads its own
+      sentence files from and when it retrains (a new area or blueprint
+      sentence may need an add-on restart), checked on a real add-on;
+      and the manual steps' lack of a cliff guard, once the duck has
+      legs.

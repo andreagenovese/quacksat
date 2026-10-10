@@ -23,6 +23,9 @@ Question: should the voice satellite on the duck talk to Home Assistant
 | Dependencies | HA, existing add-ons | a self-hosted server (e.g. Arkimede) | cloud vendor |
 | Main risk | limits of the Assist pipeline: rigid, no barge-in, Piper-only TTS | reinventing pieces HA provides for free (timers, intents, entities) | lock-in, costs, privacy, Italian language to verify |
 
+2026-10: path A has the body too — the robot as Home Assistant entities
+over MQTT, on any backend ([ADR 0007](../adr/0007-home-assistant-entities-over-mqtt.md)).
+
 ## How the flow changes
 
 ```
