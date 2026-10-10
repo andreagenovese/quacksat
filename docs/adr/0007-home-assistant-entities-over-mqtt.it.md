@@ -388,6 +388,20 @@ e sensori normali: una card sul telefono, "alle otto vai in cucina",
 "batteria sotto il 20 %, avvisami", e gli esiti detti a voce del
 percorso A (Domande aperte).
 
+**Su un'installazione vera, senza la papera.** Il 2026-10-10 tutto
+questo ha girato contro un'installazione di Home Assistant in uso ogni
+giorno (con l'add-on Mosquitto), con quacksat su un Mac di sviluppo:
+microfono e altoparlanti del Mac tramite `sox`, un robotd `--fake` vero
+come corpo, un demone di navigazione finto. Il dispositivo è comparso
+per discovery con le sue 28 entità; pulsanti e cursori sono arrivati a
+robotd e sono tornati con le sue risposte (una skill rifiutata con "the
+policy is not driving", il robot che risponde); e la voce ha chiuso il
+giro da sola: "hey Daffy" sul satellite, "papera cammina" trascritto
+dalla pipeline di casa, l'automazione a frase che preme il pulsante,
+robotd che cammina due secondi, "Fatto." detto dal Mac — due secondi e
+mezzo dalla trascrizione alla risposta. Ciò che aggiungerà la papera
+fisica sono l'audio della scheda e le gambe vere (dicembre 2026).
+
 ### 8. Configurazione
 
 ```toml

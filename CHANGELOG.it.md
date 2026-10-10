@@ -26,7 +26,15 @@ MuJoCo del Microduck — mai ancora su un'anatra fisica.
   posto per nome, confrontato senza maiuscole né articolo. Automazioni a
   frase d'esempio, frasi di Speech-to-Phrase sulle aree e un blueprint in
   `docs/home-assistant/`, in italiano e in inglese, provati su Home
-  Assistant 2026.10 e Speech-to-Phrase 1.4.3.
+  Assistant 2026.10 e Speech-to-Phrase 1.4.3 in container, poi da capo
+  a fondo su un'installazione di Home Assistant in uso ogni giorno,
+  senza la papera: quacksat su un Mac, un robotd `--fake` vero, "hey
+  Daffy" → "papera cammina" → l'automazione → la camminata → la
+  risposta detta a voce.
+- **Una guida a ogni modalità senza la papera**:
+  `docs/try-without-a-duck.it.md` — un robotd `--fake` vero, microfono e
+  altoparlanti del portatile, e la configurazione per `wyoming` (con
+  `[mqtt]`), `agent` (prima la modalità finta del bridge) e `direct`.
 
 ### Modificato
 

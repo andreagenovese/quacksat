@@ -127,7 +127,39 @@ messaggio retained che viene cancellato), e le pressioni non si accodano.
 
 ## Provarlo senza la papera
 
-Bastano un container di Home Assistant, un container di Mosquitto e un
-robotd `--fake` vero su un portatile: `docs/study/live-without-a-duck.it.md`
-spiega la parte di robotd. Un rifiuto come "the policy is not driving"
-su una skill è il robot che risponde, e dimostra che la linea funziona.
+Basta quacksat su un portatile con un robotd `--fake` vero come corpo;
+[docs/try-without-a-duck.it.md](../try-without-a-duck.it.md) prepara
+quella parte. Per Home Assistant, o un container (con accanto un
+container di Mosquitto) o quello che hai già: il 2026-10-10 l'intero
+giro ha girato contro un'installazione di Home Assistant in uso ogni
+giorno, con quacksat su un Mac — il dispositivo per discovery, i
+pulsanti e i cursori, e "hey Daffy, papera cammina" attraverso il
+satellite Wyoming, l'automazione, la camminata e il "Fatto." detto a
+voce (ADR 0007 §7).
+
+Sul tuo Home Assistant, con l'add-on Mosquitto e l'integrazione MQTT già
+configurati:
+
+1. Crea un utente del broker per la papera (va bene un utente di Home
+   Assistant: l'add-on li accetta).
+2. Aggiungi `[mqtt]` alla configurazione del portatile, con `host` =
+   l'indirizzo di Home Assistant, e avvia quacksat: il dispositivo
+   compare da solo.
+3. Per la voce, metti `[wyoming] bind = "0.0.0.0:10700"` e aggiungi
+   l'integrazione Wyoming Protocol con l'IP del portatile; poi incolla
+   le automazioni.
+
+Un rifiuto come "the policy is not driving" su una skill è il robot che
+risponde, e dimostra che la linea funziona.
+
+**Pulire dopo.** Fermare quacksat lascia il dispositivo in Home
+Assistant, non disponibile. Eliminalo dalla sua pagina, poi svuota i
+messaggi retained lasciati sul broker (`-r -n` pubblica un messaggio
+retained vuoto, che lo cancella):
+
+```sh
+for t in homeassistant/device/quacksat/config quacksat/quacksat/state \
+         quacksat/quacksat/availability quacksat/quacksat/robot; do
+  mosquitto_pub -h homeassistant.local -u quacksat -P '…' -r -n -t "$t"
+done
+```

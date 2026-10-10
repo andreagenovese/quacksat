@@ -25,7 +25,15 @@ MuJoCo twin of the Microduck — never yet on a physical duck.
   case or article. Example sentence automations, Speech-to-Phrase
   sentences on the areas and a blueprint in `docs/home-assistant/`,
   Italian and English, tested against Home Assistant 2026.10 and
-  Speech-to-Phrase 1.4.3.
+  Speech-to-Phrase 1.4.3 in containers, then end to end on a Home
+  Assistant install in everyday use, without the duck: quacksat on a
+  Mac, a real robotd `--fake`, "hey Daffy" → "papera cammina" → the
+  automation → the walk → the spoken answer.
+
+- **A guide to every mode without a duck**:
+  `docs/try-without-a-duck.md` — a real robotd `--fake`, the laptop's
+  microphone and speakers, and the config for `wyoming` (with `[mqtt]`),
+  `agent` (the bridge's fake mode first) and `direct`.
 
 ### Changed
 

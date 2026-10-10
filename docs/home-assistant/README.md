@@ -124,7 +124,37 @@ retained message being cleared), and presses do not queue.
 
 ## Trying it without the duck
 
-A Home Assistant container, a Mosquitto container and a real robotd
-`--fake` on a laptop are enough: `docs/study/live-without-a-duck.md`
-explains the robotd side. A refusal like "the policy is not driving" on a
-skill is the robot answering, which proves the line works.
+quacksat on a laptop with a real robotd `--fake` as the body is enough;
+[docs/try-without-a-duck.md](../try-without-a-duck.md) sets up that
+side. For Home Assistant, either a container (with a Mosquitto
+container beside it) or the one you already have: on 2026-10-10 the
+whole loop ran against a Home Assistant install in everyday use, with
+quacksat on a Mac — the device by discovery, the buttons and sliders,
+and "hey Daffy, papera cammina" through the Wyoming satellite, the
+automation, the walk and the spoken "Fatto." (ADR 0007 §7).
+
+On your Home Assistant, with the Mosquitto add-on and the MQTT
+integration already set up:
+
+1. Create a broker user for the duck (a Home Assistant user works: the
+   add-on accepts them).
+2. Add `[mqtt]` to the laptop's config, with `host` = Home Assistant's
+   address, and start quacksat: the device appears by itself.
+3. For the voice, set `[wyoming] bind = "0.0.0.0:10700"` and add the
+   Wyoming Protocol integration with the laptop's IP; then paste the
+   automations.
+
+A refusal like "the policy is not driving" on a skill is the robot
+answering, which proves the line works.
+
+**Cleaning up afterwards.** Stopping quacksat leaves the device in Home
+Assistant, unavailable. Delete it from its device page, then clear the
+retained messages it left on the broker (`-r -n` publishes an empty
+retained message, which removes it):
+
+```sh
+for t in homeassistant/device/quacksat/config quacksat/quacksat/state \
+         quacksat/quacksat/availability quacksat/quacksat/robot; do
+  mosquitto_pub -h homeassistant.local -u quacksat -P '…' -r -n -t "$t"
+done
+```

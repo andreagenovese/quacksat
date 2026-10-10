@@ -370,6 +370,20 @@ ordinary buttons and sensors: a card on the phone, "at eight go to the
 kitchen", "battery under 20 %, tell me", and the spoken outcomes of
 path A (Open questions).
 
+**On a real install, without the duck.** On 2026-10-10 the whole of it
+ran against a Home Assistant install in everyday use (with the
+Mosquitto add-on), with quacksat on a development Mac: the Mac's
+microphone and speakers through `sox`, a real robotd `--fake` as the
+body, a stand-in navigation daemon. The device appeared by discovery
+with its 28 entities; the buttons and sliders reached robotd and came
+back with its answers (a skill refused with "the policy is not
+driving", the robot answering); and the voice closed the loop on its
+own: "hey Daffy" on the satellite, "papera cammina" transcribed by the
+house's pipeline, the sentence automation pressing the button, robotd
+walking two seconds, "Fatto." spoken back from the Mac — two and a half
+seconds from the transcript to the answer. What the physical duck will
+add is the board's audio and real legs (December 2026).
+
 ### 8. Config
 
 ```toml

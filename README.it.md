@@ -243,6 +243,8 @@ ssh -L /tmp/robotd.sock:/run/robotd.sock <anatra>
 
 Su macOS mic e speaker funzionano via sox — vedi gli hook
 `capture_command` / `playback_program` in `quacksat.example.toml`.
+Le tre modalità, passo per passo, su un portatile senza papera:
+[docs/try-without-a-duck.it.md](docs/try-without-a-duck.it.md).
 
 ## Licenza
 
