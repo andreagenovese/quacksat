@@ -118,6 +118,8 @@ pub fn timed_move(
         return Err("already walking".to_string());
     }
     let _walking = Walking;
+    // A stop that raced the end of the last walk must not cut this one.
+    HALT.store(false, Ordering::SeqCst);
     let start = Instant::now();
     let end = start + Duration::from_secs_f64(duration_s);
     while Instant::now() < end {
@@ -145,5 +147,9 @@ mod tests {
         // the next walk.
         halt();
         assert!(!HALT.load(Ordering::SeqCst));
+        // A stale stop (one that raced the end of a walk) does not cut
+        // the next walk short: it reaches the robot, here unreachable.
+        HALT.store(true, Ordering::SeqCst);
+        assert_eq!(timed_move(&mut None, params, 1.0), Err("robot unreachable".to_string()));
     }
 }
